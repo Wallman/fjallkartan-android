@@ -11,10 +11,20 @@ import fjallkartan.fjallkartan.measurement.DistanceMeasurement
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.measurement.MeasurementState
 import fjallkartan.fjallkartan.settings.RemoteSettings
+import fjallkartan.fjallkartan.saved.FeaturedRoute
+import fjallkartan.fjallkartan.saved.FeaturedRoutes
+import fjallkartan.fjallkartan.saved.JsonFileStore
+import fjallkartan.fjallkartan.saved.SavedPin
+import fjallkartan.fjallkartan.saved.SavedRoute
+import fjallkartan.fjallkartan.search.PlaceResult
+import fjallkartan.fjallkartan.search.PlaceSearch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val _slopeVisible = MutableStateFlow(false)
@@ -30,6 +40,39 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val _elevation = MutableStateFlow(ElevationProfileState())
     val elevation = _elevation.asStateFlow()
     private var elevationJob: Job? = null
+
+    private val routeStore = JsonFileStore(
+        application,
+        "routes",
+        SavedRoute::toJson,
+        SavedRoute::fromJson,
+        SavedRoute::id,
+    )
+    private val pinStore = JsonFileStore(
+        application,
+        "pins",
+        SavedPin::toJson,
+        SavedPin::fromJson,
+        SavedPin::id,
+    )
+    private val placeSearch by lazy { PlaceSearch(application) }
+
+    private val _savedRoutes = MutableStateFlow(routeStore.load().sortedByDescending(SavedRoute::createdAt))
+    val savedRoutes = _savedRoutes.asStateFlow()
+
+    private val _savedPins = MutableStateFlow(pinStore.load().sortedByDescending(SavedPin::createdAt))
+    val savedPins = _savedPins.asStateFlow()
+
+    val featuredRoutes: List<FeaturedRoute> = FeaturedRoutes.load(application)
+
+    private val _searchResults = MutableStateFlow<List<PlaceResult>>(emptyList())
+    val searchResults = _searchResults.asStateFlow()
+    private val _selectedPlace = MutableStateFlow<PlaceResult?>(null)
+    val selectedPlace = _selectedPlace.asStateFlow()
+    private var searchJob: Job? = null
+
+    private val _routeFitVersion = MutableStateFlow(0)
+    val routeFitVersion = _routeFitVersion.asStateFlow()
 
     init {
         RemoteSettings.refresh()
@@ -68,6 +111,84 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     fun clearMeasurement() {
         _measurement.value = DistanceMeasurement.clear(_measurement.value)
         refreshElevation()
+    }
+
+    fun saveRoute(name: String?) {
+        val current = _measurement.value
+        if (current.coordinates.size < 2) return
+        val route = SavedRoute.snapshot(current, _elevation.value, name)
+        routeStore.save(route)
+        _savedRoutes.value = routeStore.load().sortedByDescending(SavedRoute::createdAt)
+    }
+
+    fun loadRoute(route: SavedRoute) {
+        elevationJob?.cancel()
+        _measurement.value = DistanceMeasurement.load(
+            _measurement.value,
+            route.coordinates,
+            route.strokeSizes,
+            route.meters,
+        )
+        _elevation.value = if (route.elevations.isEmpty()) {
+            ElevationProfileState()
+        } else {
+            val step = if (route.elevations.size > 1) route.meters / (route.elevations.size - 1) else 0.0
+            ElevationProfile.apply(
+                route.elevations.mapIndexed { index, value ->
+                    ElevationPoint(index * step, value)
+                },
+            )
+        }
+        _routeFitVersion.value += 1
+    }
+
+    fun deleteRoute(route: SavedRoute) {
+        routeStore.delete(route.id)
+        _savedRoutes.value = routeStore.load().sortedByDescending(SavedRoute::createdAt)
+    }
+
+    fun renameRoute(route: SavedRoute, name: String) {
+        routeStore.save(route.renamed(name))
+        _savedRoutes.value = routeStore.load().sortedByDescending(SavedRoute::createdAt)
+    }
+
+    fun setSearchQuery(query: String) {
+        searchJob?.cancel()
+        if (query.isBlank()) {
+            _searchResults.value = emptyList()
+            return
+        }
+        searchJob = viewModelScope.launch {
+            delay(150)
+            _searchResults.value = withContext(Dispatchers.IO) { placeSearch.search(query) }
+        }
+    }
+
+    fun selectPlace(place: PlaceResult?) {
+        _selectedPlace.value = place
+    }
+
+    fun savePlace(place: PlaceResult) {
+        savePin(SavedPin(coordinate = place.coordinate, name = place.name))
+        _selectedPlace.value = null
+    }
+
+    fun dropPin(coordinate: GeoCoordinate) {
+        savePin(SavedPin(coordinate = coordinate))
+    }
+
+    fun renamePin(pin: SavedPin, name: String) {
+        savePin(pin.renamed(name))
+    }
+
+    fun deletePin(pin: SavedPin) {
+        pinStore.delete(pin.id)
+        _savedPins.value = pinStore.load().sortedByDescending(SavedPin::createdAt)
+    }
+
+    private fun savePin(pin: SavedPin) {
+        pinStore.save(pin)
+        _savedPins.value = pinStore.load().sortedByDescending(SavedPin::createdAt)
     }
 
     private fun refreshElevation() {

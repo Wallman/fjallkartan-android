@@ -18,8 +18,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -50,8 +53,15 @@ import fjallkartan.fjallkartan.measurement.DistanceMeasurement
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.measurement.MeasurementState
 import fjallkartan.fjallkartan.elevation.ElevationProfileSheet
+import fjallkartan.fjallkartan.saved.NameDialog
+import fjallkartan.fjallkartan.saved.PinDetailDialog
+import fjallkartan.fjallkartan.saved.PlaceSearchSheet
+import fjallkartan.fjallkartan.saved.SavedPin
+import fjallkartan.fjallkartan.saved.SavedRoutesSheet
+import fjallkartan.fjallkartan.search.PlaceResult
 import kotlin.math.cos
 import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
@@ -83,10 +93,19 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val trackingEnabled by viewModel.trackingEnabled.collectAsStateWithLifecycle()
     val measurement by viewModel.measurement.collectAsStateWithLifecycle()
     val elevation by viewModel.elevation.collectAsStateWithLifecycle()
+    val savedRoutes by viewModel.savedRoutes.collectAsStateWithLifecycle()
+    val savedPins by viewModel.savedPins.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
+    val selectedPlace by viewModel.selectedPlace.collectAsStateWithLifecycle()
+    val routeFitVersion by viewModel.routeFitVersion.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var latitude by remember { mutableDoubleStateOf(67.0) }
     var zoom by remember { mutableDoubleStateOf(3.4) }
     var showElevation by remember { mutableStateOf(false) }
+    var showSearch by remember { mutableStateOf(false) }
+    var showSavedRoutes by remember { mutableStateOf(false) }
+    var showSaveRoute by remember { mutableStateOf(false) }
+    var selectedPin by remember { mutableStateOf<SavedPin?>(null) }
     val mapState = remember { MapHolder() }
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -124,6 +143,11 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             measurement = measurement,
             onStrokeFinished = viewModel::appendStroke,
             onPreviewChanged = viewModel::updatePreview,
+            pins = savedPins,
+            selectedPlace = selectedPlace,
+            routeFitVersion = routeFitVersion,
+            onDropPin = viewModel::dropPin,
+            onPinSelected = { pinId -> selectedPin = savedPins.firstOrNull { it.id == pinId } },
             onCameraChanged = { camera ->
                 latitude = camera.target?.latitude ?: latitude
                 zoom = camera.zoom
@@ -136,6 +160,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 .padding(top = 56.dp, end = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            MapControlButton(onClick = { showSearch = true }) {
+                Icon(Icons.Default.Search, contentDescription = "Search places")
+            }
             MapControlButton(onClick = viewModel::toggleTracking) {
                 Icon(
                     Icons.Default.MyLocation,
@@ -156,6 +183,14 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     contentDescription = "Measure distance",
                     tint = if (measurement.isMeasuring) Color(0xFFF28C28) else Color.Black,
                 )
+            }
+            MapControlButton(onClick = { showSavedRoutes = true }) {
+                Icon(Icons.Default.Bookmarks, contentDescription = "Saved routes")
+            }
+            if (!measurement.isEmpty) {
+                MapControlButton(onClick = { showSaveRoute = true }) {
+                    Icon(Icons.Default.Save, contentDescription = "Save route")
+                }
             }
             if (measurement.isMeasuring) {
                 MapControlButton(
@@ -229,6 +264,49 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     if (showElevation && elevation.hasData) {
         ElevationProfileSheet(state = elevation, onDismiss = { showElevation = false })
     }
+    if (showSearch) {
+        PlaceSearchSheet(
+            results = searchResults,
+            onQueryChanged = viewModel::setSearchQuery,
+            onSelect = {
+                viewModel.selectPlace(it)
+                showSearch = false
+            },
+            onSave = viewModel::savePlace,
+            onDismiss = { showSearch = false },
+        )
+    }
+    if (showSavedRoutes) {
+        SavedRoutesSheet(
+            featured = viewModel.featuredRoutes,
+            saved = savedRoutes,
+            onLoad = {
+                viewModel.loadRoute(it)
+                showSavedRoutes = false
+            },
+            onRename = viewModel::renameRoute,
+            onDelete = viewModel::deleteRoute,
+            onDismiss = { showSavedRoutes = false },
+        )
+    }
+    if (showSaveRoute) {
+        NameDialog(
+            title = "Save route",
+            onConfirm = {
+                viewModel.saveRoute(it)
+                showSaveRoute = false
+            },
+            onDismiss = { showSaveRoute = false },
+        )
+    }
+    selectedPin?.let { pin ->
+        PinDetailDialog(
+            pin = pin,
+            onRename = { viewModel.renamePin(pin, it) },
+            onDelete = { viewModel.deletePin(pin) },
+            onDismiss = { selectedPin = null },
+        )
+    }
 }
 
 @Composable
@@ -275,8 +353,13 @@ private fun ScaleBar(latitude: Double, zoom: Double, modifier: Modifier = Modifi
 private fun MapLibreView(
     holder: MapHolder,
     measurement: MeasurementState,
+    pins: List<SavedPin>,
+    selectedPlace: PlaceResult?,
+    routeFitVersion: Int,
     onStrokeFinished: (List<GeoCoordinate>) -> Unit,
     onPreviewChanged: (Double?) -> Unit,
+    onDropPin: (GeoCoordinate) -> Unit,
+    onPinSelected: (java.util.UUID) -> Unit,
     onCameraChanged: (CameraPosition) -> Unit,
 ) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -287,6 +370,8 @@ private fun MapLibreView(
             onCameraChanged = onCameraChanged,
             onStrokeFinished = onStrokeFinished,
             onPreviewChanged = onPreviewChanged,
+            onDropPin = onDropPin,
+            onPinSelected = onPinSelected,
         )
     }
     val mapView = container.mapView
@@ -315,6 +400,9 @@ private fun MapLibreView(
         update = {
             holder.setMeasuring(measurement.isMeasuring)
             holder.updateRoute(measurement.coordinates, measurement.committedMeters)
+            holder.updatePins(pins)
+            holder.showSearchPlace(selectedPlace)
+            holder.fitRoute(measurement.coordinates, routeFitVersion)
         },
         modifier = Modifier.fillMaxSize(),
     )
@@ -329,20 +417,27 @@ private class MapHolder {
     private var measuring = false
     private var routeCoordinates: List<GeoCoordinate> = emptyList()
     private var routeMeters: Double = 0.0
+    private var pins: List<SavedPin> = emptyList()
+    private var shownSearchPlace: PlaceResult? = null
+    private var selectedSearchPlaceId: Long? = null
+    private var lastFitVersion = 0
 
     fun createContainer(
         context: android.content.Context,
         onCameraChanged: (CameraPosition) -> Unit,
         onStrokeFinished: (List<GeoCoordinate>) -> Unit,
         onPreviewChanged: (Double?) -> Unit,
+        onDropPin: (GeoCoordinate) -> Unit,
+        onPinSelected: (java.util.UUID) -> Unit,
     ): MapContainerView {
         val mapView = MapView(context).also { it.onCreate(Bundle()) }
+        val pinOverlay = PinOverlay(context)
         val markerOverlay = DistanceMarkerOverlay(context)
         val captureView = MeasureCaptureView(context).apply {
             this.onStrokeFinished = onStrokeFinished
             this.onPreviewChanged = onPreviewChanged
         }
-        val container = MapContainerView(context, mapView, markerOverlay, captureView)
+        val container = MapContainerView(context, mapView, pinOverlay, markerOverlay, captureView)
         this.mapView = mapView
         this.container = container
         mapView.getMapAsync { readyMap ->
@@ -368,12 +463,29 @@ private class MapHolder {
                 updateDistanceMarkers()
                 container.invalidateMarkers()
             }
+            readyMap.addOnMapLongClickListener { coordinate ->
+                onDropPin(GeoCoordinate(coordinate.latitude, coordinate.longitude))
+                true
+            }
+            readyMap.addOnMapClickListener { coordinate ->
+                val tapped = readyMap.projection.toScreenLocation(coordinate)
+                val hit = pins.firstOrNull { pin ->
+                    val point = readyMap.projection.toScreenLocation(
+                        LatLng(pin.coordinate.latitude, pin.coordinate.longitude),
+                    )
+                    kotlin.math.hypot(point.x - tapped.x, point.y - tapped.y) <=
+                        28 * container.resources.displayMetrics.density
+                }
+                if (hit != null) onPinSelected(hit.id)
+                hit != null
+            }
             readyMap.setStyle(Style.Builder().fromJson(MapStyle.json())) {
                 addMeasurementLayers(it)
                 setSlopeVisible(slopeVisible)
                 setTracking(tracking)
                 setMeasuring(measuring)
                 renderRoute()
+                container.updatePins(pins, shownSearchPlace)
             }
         }
         return container
@@ -383,6 +495,8 @@ private class MapHolder {
         map = null
         mapView = null
         container = null
+        pins = emptyList()
+        shownSearchPlace = null
     }
 
     fun setSlopeVisible(visible: Boolean) {
@@ -486,6 +600,39 @@ private class MapHolder {
                 circleStrokeWidth(2.5f),
             ),
         )
+    }
+
+    fun updatePins(pins: List<SavedPin>) {
+        if (this.pins == pins) return
+        this.pins = pins
+        container?.updatePins(pins, shownSearchPlace)
+    }
+
+    fun showSearchPlace(place: PlaceResult?) {
+        val readyMap = map ?: return
+        if (selectedSearchPlaceId == place?.id) return
+        selectedSearchPlaceId = place?.id
+        shownSearchPlace = place
+        container?.updatePins(pins, place)
+        if (place != null) {
+            readyMap.animateCamera(
+                CameraUpdateFactory.newLatLngZoom(
+                    LatLng(place.coordinate.latitude, place.coordinate.longitude),
+                    12.0,
+                ),
+                700,
+            )
+        }
+    }
+
+    fun fitRoute(coordinates: List<GeoCoordinate>, version: Int) {
+        if (version == lastFitVersion || coordinates.size < 2) return
+        val readyMap = map ?: return
+        lastFitVersion = version
+        val bounds = LatLngBounds.Builder().also { builder ->
+            coordinates.forEach { builder.include(LatLng(it.latitude, it.longitude)) }
+        }.build()
+        readyMap.animateCamera(CameraUpdateFactory.newLatLngBounds(bounds, 120), 700)
     }
 
     @Suppress("MissingPermission")

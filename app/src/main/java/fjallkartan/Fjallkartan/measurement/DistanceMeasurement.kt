@@ -60,6 +60,21 @@ object DistanceMeasurement {
         )
     }
 
+    fun load(
+        state: MeasurementState,
+        coordinates: List<GeoCoordinate>,
+        strokeSizes: List<Int>,
+        meters: Double,
+    ): MeasurementState {
+        return MeasurementState(
+            isMeasuring = false,
+            coordinates = coordinates,
+            strokeSizes = strokeSizes,
+            committedMeters = meters,
+            version = state.version + 1,
+        )
+    }
+
     fun meters(from: GeoCoordinate, to: GeoCoordinate): Double {
         val lat1 = Math.toRadians(from.latitude)
         val lat2 = Math.toRadians(to.latitude)

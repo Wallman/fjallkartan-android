@@ -6,6 +6,7 @@ import android.util.Log
 import fjallkartan.fjallkartan.settings.RemoteSettings
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
+import java.io.IOException
 import java.net.InetAddress
 import java.net.InetSocketAddress
 import java.net.ServerSocket
@@ -138,17 +139,21 @@ object KartverketTileProxy {
         contentType: String? = null,
         headers: List<Pair<String, String>> = emptyList(),
     ) {
-        val output = socket.getOutputStream()
-        val head = buildString {
-            append("HTTP/1.1 $status $reason\r\n")
-            if (body != null && contentType != null) append("Content-Type: $contentType\r\n")
-            append("Content-Length: ${body?.size ?: 0}\r\n")
-            headers.forEach { (name, value) -> append("$name: $value\r\n") }
-            append("Connection: close\r\n\r\n")
+        try {
+            val output = socket.getOutputStream()
+            val head = buildString {
+                append("HTTP/1.1 $status $reason\r\n")
+                if (body != null && contentType != null) append("Content-Type: $contentType\r\n")
+                append("Content-Length: ${body?.size ?: 0}\r\n")
+                headers.forEach { (name, value) -> append("$name: $value\r\n") }
+                append("Connection: close\r\n\r\n")
+            }
+            output.write(head.toByteArray(StandardCharsets.US_ASCII))
+            if (body != null) output.write(body)
+            output.flush()
+        } catch (_: IOException) {
+            Log.d(TAG, "Tile client closed the connection before the response completed")
         }
-        output.write(head.toByteArray(StandardCharsets.US_ASCII))
-        if (body != null) output.write(body)
-        output.flush()
     }
 
     internal data class Tile(val z: Int, val x: Int, val y: Int)
