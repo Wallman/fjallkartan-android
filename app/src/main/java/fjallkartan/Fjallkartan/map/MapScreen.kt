@@ -6,6 +6,7 @@ import android.os.Bundle
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -30,6 +31,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -47,6 +49,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import fjallkartan.fjallkartan.measurement.DistanceMeasurement
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.measurement.MeasurementState
+import fjallkartan.fjallkartan.elevation.ElevationProfileSheet
 import kotlin.math.cos
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.geojson.FeatureCollection
@@ -79,9 +82,11 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val slopeVisible by viewModel.slopeVisible.collectAsStateWithLifecycle()
     val trackingEnabled by viewModel.trackingEnabled.collectAsStateWithLifecycle()
     val measurement by viewModel.measurement.collectAsStateWithLifecycle()
+    val elevation by viewModel.elevation.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var latitude by remember { mutableDoubleStateOf(67.0) }
     var zoom by remember { mutableDoubleStateOf(3.4) }
+    var showElevation by remember { mutableStateOf(false) }
     val mapState = remember { MapHolder() }
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -169,16 +174,33 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         }
 
         if (measurement.totalMeters > 0) {
-            Text(
-                text = DistanceMeasurement.formatDistance(measurement.totalMeters),
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
                     .padding(end = 12.dp, bottom = 44.dp)
                     .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                    .clickable(enabled = elevation.hasData) { showElevation = true }
                     .padding(horizontal = 12.dp, vertical = 7.dp),
-                color = Color.Black,
-                style = MaterialTheme.typography.titleSmall,
-            )
+                horizontalAlignment = Alignment.End,
+            ) {
+                Text(
+                    text = DistanceMeasurement.formatDistance(measurement.totalMeters),
+                    color = Color.Black,
+                    style = MaterialTheme.typography.titleSmall,
+                )
+                when {
+                    elevation.isLoading -> Text(
+                        "Loading elevation…",
+                        color = Color.DarkGray,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    elevation.hasData -> Text(
+                        "↑ ${elevation.ascent.toInt()} m  ↓ ${elevation.descent.toInt()} m",
+                        color = Color.DarkGray,
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
         }
 
         ScaleBar(
@@ -202,6 +224,10 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 color = Color.Black,
             )
         }
+    }
+
+    if (showElevation && elevation.hasData) {
+        ElevationProfileSheet(state = elevation, onDismiss = { showElevation = false })
     }
 }
 
