@@ -1,0 +1,225 @@
+# Google Play delivery.
+#
+# Authentication uses a Google Play Console service account. Set:
+#
+#   GOOGLE_PLAY_JSON_KEY=/absolute/path/to/play-service-account.json
+#
+# Release signing uses the upload key configured in app/build.gradle.kts:
+#
+#   FJALLKARTAN_KEYSTORE
+#   FJALLKARTAN_STORE_PASSWORD
+#   FJALLKARTAN_KEY_ALIAS
+#   FJALLKARTAN_KEY_PASSWORD
+#
+# Google Play App Signing owns the final app-signing key. The local key is only
+# the replaceable upload key and must never be committed.
+
+require "shellwords"
+
+default_platform(:android)
+
+PACKAGE_NAME = "fjallkartan.fjallkartan"
+METADATA_PATH = File.expand_path("metadata/android", __dir__)
+RELEASE_AAB = File.expand_path("../app/build/outputs/bundle/release/app-release.aab", __dir__)
+RELEASE_APK = File.expand_path("../app/build/outputs/apk/release/app-release.apk", __dir__)
+
+PLAY_FIELD_LIMITS = {
+  "title" => 30,
+  "short_description" => 80,
+  "full_description" => 4_000
+}.freeze
+
+REQUIRED_PLAY_FIELDS = PLAY_FIELD_LIMITS.keys.freeze
+
+def require_play_key!
+  path = ENV["GOOGLE_PLAY_JSON_KEY"].to_s
+  UI.user_error!("GOOGLE_PLAY_JSON_KEY is not set") if path.empty?
+  UI.user_error!("GOOGLE_PLAY_JSON_KEY does not exist: #{path}") unless File.file?(path)
+  path
+end
+
+def require_upload_signing!
+  %w[
+    FJALLKARTAN_KEYSTORE
+    FJALLKARTAN_STORE_PASSWORD
+    FJALLKARTAN_KEY_ALIAS
+    FJALLKARTAN_KEY_PASSWORD
+  ].each do |name|
+    UI.user_error!("#{name} is not set") if ENV[name].to_s.empty?
+  end
+  UI.user_error!("FJALLKARTAN_KEYSTORE does not exist") unless File.file?(ENV["FJALLKARTAN_KEYSTORE"])
+end
+
+def play_locales
+  UI.user_error!("no Play metadata at #{METADATA_PATH}") unless File.directory?(METADATA_PATH)
+  Dir.children(METADATA_PATH)
+     .select { |name| File.directory?(File.join(METADATA_PATH, name)) }
+     .reject { |name| name.start_with?(".") }
+     .sort
+end
+
+def check_play_metadata!
+  locales = play_locales
+  UI.user_error!("no locale directories in #{METADATA_PATH}") if locales.empty?
+
+  problems = []
+  locales.each do |locale|
+    REQUIRED_PLAY_FIELDS.each do |field|
+      path = File.join(METADATA_PATH, locale, "#{field}.txt")
+      unless File.file?(path)
+        problems << "#{locale}: missing #{field}.txt"
+        next
+      end
+      value = File.read(path).strip
+      problems << "#{locale}: #{field}.txt is empty" if value.empty?
+      limit = PLAY_FIELD_LIMITS.fetch(field)
+      problems << "#{locale}: #{field} is #{value.length} characters, limit is #{limit}" if value.length > limit
+    end
+
+    Dir.glob(File.join(METADATA_PATH, locale, "changelogs", "*.txt")).each do |path|
+      value = File.read(path).strip
+      problems << "#{locale}: #{File.basename(path)} changelog is empty" if value.empty?
+      problems << "#{locale}: #{File.basename(path)} changelog is #{value.length} characters, limit is 500" if value.length > 500
+    end
+  end
+
+  unless problems.empty?
+    problems.each { |problem| UI.error(problem) }
+    UI.user_error!("Google Play metadata failed validation")
+  end
+
+  UI.success("ok: #{locales.size} Google Play locales within field limits")
+end
+
+def require_play_screenshots!
+  missing = play_locales.reject do |locale|
+    directory = File.join(METADATA_PATH, locale, "images", "phoneScreenshots")
+    File.directory?(directory) && Dir.glob(File.join(directory, "*.{png,jpg,jpeg}")).any?
+  end
+  return if missing.empty?
+
+  UI.user_error!(
+    "missing phone screenshots for: #{missing.join(', ')}. " \
+    "Place generated images under fastlane/metadata/android/<locale>/images/phoneScreenshots/"
+  )
+end
+
+def play_upload_options
+  {
+    json_key: require_play_key!,
+    package_name: PACKAGE_NAME,
+    metadata_path: METADATA_PATH
+  }
+end
+
+platform :android do
+  desc "Validate checked-in Google Play metadata without uploading"
+  lane :check_metadata do
+    check_play_metadata!
+  end
+
+  desc "Validate the Google Play service-account credentials"
+  lane :validate_credentials do
+    validate_play_store_json_key(json_key: require_play_key!)
+  end
+
+  desc "Build signed release APK/AAB and verify 16 KB native-library alignment"
+  lane :build do
+    require_upload_signing!
+    gradle(tasks: ["clean", "testDebugUnitTest", "lintDebug", "assembleRelease", "bundleRelease"])
+    sh("python3 tools/verify_16kb_alignment.py app/build/outputs/apk/release/app-release.apk")
+
+    sdk = ENV.fetch("ANDROID_HOME", File.expand_path("~/Library/Android/sdk"))
+    zipalign = Dir.glob(File.join(sdk, "build-tools", "*", "zipalign")).sort.last
+    UI.user_error!("zipalign not found under #{sdk}/build-tools") if zipalign.nil?
+    sh("#{zipalign.shellescape} -c -P 16 4 #{RELEASE_APK.shellescape}")
+  end
+
+  desc "Upload text metadata only"
+  lane :metadata do
+    check_play_metadata!
+    upload_to_play_store(
+      **play_upload_options,
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Upload phone screenshots only"
+  lane :screenshots do
+    require_play_screenshots!
+    upload_to_play_store(
+      **play_upload_options,
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_metadata: true
+    )
+  end
+
+  desc "Upload metadata and screenshots without a binary"
+  lane :store do
+    check_play_metadata!
+    require_play_screenshots!
+    upload_to_play_store(
+      **play_upload_options,
+      skip_upload_aab: true,
+      skip_upload_apk: true
+    )
+  end
+
+  desc "Build and upload a draft release to the internal testing track"
+  lane :internal do
+    build
+    upload_to_play_store(
+      **play_upload_options,
+      aab: RELEASE_AAB,
+      track: "internal",
+      release_status: "draft",
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Promote a release between Play tracks, e.g. from:internal to:production"
+  lane :promote do |options|
+    upload_to_play_store(
+      **play_upload_options,
+      track: options.fetch(:from, "internal"),
+      track_promote_to: options.fetch(:to, "production"),
+      release_status: options.fetch(:status, "draft"),
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Overwrite checked-in metadata with Google Play state so git diff shows drift"
+  lane :pull do
+    status = sh("git status --porcelain fastlane/metadata/android", log: false).strip
+    unless status.empty?
+      UI.user_error!(
+        "fastlane/metadata/android has uncommitted changes; commit or stash them before pull:\n#{status}"
+      )
+    end
+
+    download_from_play_store(
+      json_key: require_play_key!,
+      package_name: PACKAGE_NAME,
+      metadata_path: METADATA_PATH
+    )
+
+    diff = sh("git status --porcelain fastlane/metadata/android", log: false).strip
+    if diff.empty?
+      UI.success("Google Play matches the checked-in metadata")
+    else
+      UI.important("Google Play differs; inspect `git diff fastlane/metadata/android`")
+    end
+  end
+end

@@ -14,3 +14,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+fastlane/README.md
+fastlane/report.xml
+fastlane/test_output/
+fastlane/metadata/android/*/images/
+.bundle/
+vendor/bundle/
