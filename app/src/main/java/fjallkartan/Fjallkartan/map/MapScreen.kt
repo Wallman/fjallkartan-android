@@ -277,13 +277,15 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 .padding(top = 56.dp, end = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            if (kotlin.math.abs(bearing) > 0.5) {
-                MapControlButton(onClick = mapState::resetBearing) {
-                    Icon(
-                        Icons.Default.Explore,
-                        contentDescription = "Reset compass to north",
-                        modifier = Modifier.rotate(-bearing.toFloat()),
-                    )
+            Box(Modifier.size(48.dp)) {
+                if (kotlin.math.abs(bearing) > 0.5) {
+                    MapControlButton(onClick = mapState::resetBearing) {
+                        Icon(
+                            Icons.Default.Explore,
+                            contentDescription = "Reset compass to north",
+                            modifier = Modifier.rotate(-bearing.toFloat()),
+                        )
+                    }
                 }
             }
             MapControlButton(onClick = { showSearch = true }) {
