@@ -25,6 +25,12 @@ class SearchAndSavedInstrumentedTest {
     }
 
     @Test
+    fun foldsDiacriticsLikeTheIosSearchIndex() {
+        val results = PlaceSearch(context).search("stalo")
+        assertTrue(results.any { it.name == "Stáloluokta" })
+    }
+
+    @Test
     fun loadsFeaturedRoutes() {
         val routes = FeaturedRoutes.load(context)
         assertTrue(routes.size >= 8)

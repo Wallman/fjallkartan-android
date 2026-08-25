@@ -82,7 +82,7 @@ class PlaceSearch(context: Context) {
     companion object {
         private const val COORDINATE_SCALE = 100_000.0
         private const val SCAN_LIMIT = 60_000
-        private const val DATABASE_VERSION = 4
+        private const val DATABASE_VERSION = 5
 
         fun ftsExpression(text: String): String? {
             val terms = text.lowercase()

@@ -31,14 +31,18 @@ def build(source: Path, output: Path) -> None:
             CREATE UNIQUE INDEX municipality_id ON municipality(id);
             CREATE UNIQUE INDEX language_id ON language(id);
 
-            CREATE VIRTUAL TABLE place_fts USING fts4(name, content='');
+            CREATE VIRTUAL TABLE place_fts USING fts4(
+                name,
+                content='',
+                tokenize=unicode61 'remove_diacritics=1'
+            );
             INSERT INTO place_fts(rowid, name) SELECT id, name FROM place;
             INSERT INTO place_fts(rowid, name) SELECT id, name FROM alias;
             INSERT INTO place_fts(place_fts) VALUES ('optimize');
             """
         )
         db.execute("DETACH DATABASE source")
-        db.execute("PRAGMA user_version=4")
+        db.execute("PRAGMA user_version=5")
         db.execute("VACUUM")
     finally:
         db.close()
