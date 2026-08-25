@@ -3,9 +3,11 @@ package fjallkartan.fjallkartan.map
 import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Bundle
+import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -15,10 +17,14 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Bookmarks
+import androidx.compose.material.icons.filled.DownloadForOffline
+import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Save
@@ -26,6 +32,9 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -40,6 +49,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -59,6 +70,7 @@ import fjallkartan.fjallkartan.saved.PlaceSearchSheet
 import fjallkartan.fjallkartan.saved.SavedPin
 import fjallkartan.fjallkartan.saved.SavedRoutesSheet
 import fjallkartan.fjallkartan.search.PlaceResult
+import fjallkartan.fjallkartan.offline.OfflineRegionsSheet
 import kotlin.math.cos
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -98,6 +110,8 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val selectedPlace by viewModel.selectedPlace.collectAsStateWithLifecycle()
     val routeFitVersion by viewModel.routeFitVersion.collectAsStateWithLifecycle()
+    val offlineRegions by viewModel.offlineRegions.collectAsStateWithLifecycle()
+    val offlineError by viewModel.offlineError.collectAsStateWithLifecycle()
     val context = LocalContext.current
     var latitude by remember { mutableDoubleStateOf(67.0) }
     var zoom by remember { mutableDoubleStateOf(3.4) }
@@ -106,6 +120,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     var showSavedRoutes by remember { mutableStateOf(false) }
     var showSaveRoute by remember { mutableStateOf(false) }
     var selectedPin by remember { mutableStateOf<SavedPin?>(null) }
+    var isPickingOffline by remember { mutableStateOf(false) }
+    var showOfflineRegions by remember { mutableStateOf(false) }
+    var pendingOfflineBounds by remember { mutableStateOf<LatLngBounds?>(null) }
     val mapState = remember { MapHolder() }
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -115,6 +132,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             mapState.setTracking(true)
         }
     }
+    val notificationPermission = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission(),
+    ) {}
 
     LaunchedEffect(slopeVisible) {
         mapState.setSlopeVisible(slopeVisible)
@@ -146,6 +166,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             pins = savedPins,
             selectedPlace = selectedPlace,
             routeFitVersion = routeFitVersion,
+            isPickingOffline = isPickingOffline,
             onDropPin = viewModel::dropPin,
             onPinSelected = { pinId -> selectedPin = savedPins.firstOrNull { it.id == pinId } },
             onCameraChanged = { camera ->
@@ -191,6 +212,21 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 MapControlButton(onClick = { showSaveRoute = true }) {
                     Icon(Icons.Default.Save, contentDescription = "Save route")
                 }
+            }
+            MapControlButton(onClick = {
+                isPickingOffline = !isPickingOffline
+                if (isPickingOffline && Build.VERSION.SDK_INT >= 33) {
+                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            }) {
+                Icon(
+                    Icons.Default.DownloadForOffline,
+                    contentDescription = "Choose offline area",
+                    tint = if (isPickingOffline) Color(0xFFF28C28) else Color.Black,
+                )
+            }
+            MapControlButton(onClick = { showOfflineRegions = true }) {
+                Icon(Icons.Default.Folder, contentDescription = "Offline maps")
             }
             if (measurement.isMeasuring) {
                 MapControlButton(
@@ -259,6 +295,18 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 color = Color.Black,
             )
         }
+
+        if (isPickingOffline) {
+            OfflinePreviewOverlay(Modifier.fillMaxSize())
+            Button(
+                onClick = { pendingOfflineBounds = mapState.currentOfflineBounds() },
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 74.dp),
+            ) {
+                Text("Download current view")
+            }
+        }
     }
 
     if (showElevation && elevation.hasData) {
@@ -305,6 +353,54 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             onRename = { viewModel.renamePin(pin, it) },
             onDelete = { viewModel.deletePin(pin) },
             onDismiss = { selectedPin = null },
+        )
+    }
+    if (showOfflineRegions) {
+        OfflineRegionsSheet(
+            regions = offlineRegions,
+            onPause = viewModel::pauseOfflineRegion,
+            onResume = viewModel::resumeOfflineRegion,
+            onDelete = viewModel::deleteOfflineRegion,
+            onDismiss = { showOfflineRegions = false },
+        )
+    }
+    pendingOfflineBounds?.let { bounds ->
+        NameDialog(
+            title = "Name offline map",
+            onConfirm = {
+                viewModel.startOfflineDownload(it, bounds)
+                pendingOfflineBounds = null
+                isPickingOffline = false
+                showOfflineRegions = true
+            },
+            onDismiss = { pendingOfflineBounds = null },
+        )
+    }
+    offlineError?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::clearOfflineError,
+            title = { Text("Offline download") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = viewModel::clearOfflineError) { Text("OK") }
+            },
+        )
+    }
+}
+
+@Composable
+private fun OfflinePreviewOverlay(modifier: Modifier = Modifier) {
+    Canvas(modifier) {
+        val insetX = size.width * 0.1f
+        val insetY = size.height * 0.1f
+        drawRect(
+            color = Color(0xFFF28C28),
+            topLeft = androidx.compose.ui.geometry.Offset(insetX, insetY),
+            size = androidx.compose.ui.geometry.Size(size.width - insetX * 2, size.height - insetY * 2),
+            style = Stroke(
+                width = 3.dp.toPx(),
+                pathEffect = PathEffect.dashPathEffect(floatArrayOf(12.dp.toPx(), 8.dp.toPx())),
+            ),
         )
     }
 }
@@ -356,6 +452,7 @@ private fun MapLibreView(
     pins: List<SavedPin>,
     selectedPlace: PlaceResult?,
     routeFitVersion: Int,
+    isPickingOffline: Boolean,
     onStrokeFinished: (List<GeoCoordinate>) -> Unit,
     onPreviewChanged: (Double?) -> Unit,
     onDropPin: (GeoCoordinate) -> Unit,
@@ -403,6 +500,7 @@ private fun MapLibreView(
             holder.updatePins(pins)
             holder.showSearchPlace(selectedPlace)
             holder.fitRoute(measurement.coordinates, routeFitVersion)
+            holder.setOfflinePreview(isPickingOffline)
         },
         modifier = Modifier.fillMaxSize(),
     )
@@ -421,6 +519,7 @@ private class MapHolder {
     private var shownSearchPlace: PlaceResult? = null
     private var selectedSearchPlaceId: Long? = null
     private var lastFitVersion = 0
+    private var offlinePreview = false
 
     fun createContainer(
         context: android.content.Context,
@@ -464,6 +563,7 @@ private class MapHolder {
                 container.invalidateMarkers()
             }
             readyMap.addOnMapLongClickListener { coordinate ->
+                if (measuring || offlinePreview) return@addOnMapLongClickListener false
                 onDropPin(GeoCoordinate(coordinate.latitude, coordinate.longitude))
                 true
             }
@@ -517,10 +617,27 @@ private class MapHolder {
             isDoubleTapGesturesEnabled = !enabled
             isQuickZoomGesturesEnabled = !enabled
         }
+
         container?.captureView?.apply {
             anchor = routeCoordinates.lastOrNull()
             setMeasuring(enabled)
         }
+    }
+
+    fun setOfflinePreview(visible: Boolean) {
+        offlinePreview = visible
+    }
+
+    fun currentOfflineBounds(): LatLngBounds? {
+        val bounds = map?.projection?.visibleRegion?.latLngBounds ?: return null
+        val latitudeInset = bounds.latitudeSpan * 0.1
+        val longitudeInset = bounds.longitudeSpan * 0.1
+        return LatLngBounds.from(
+            bounds.latitudeNorth - latitudeInset,
+            bounds.longitudeEast - longitudeInset,
+            bounds.latitudeSouth + latitudeInset,
+            bounds.longitudeWest + longitudeInset,
+        )
     }
 
     fun updateRoute(coordinates: List<GeoCoordinate>, meters: Double) {

@@ -10,6 +10,9 @@ import fjallkartan.fjallkartan.elevation.ElevationService
 import fjallkartan.fjallkartan.measurement.DistanceMeasurement
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.measurement.MeasurementState
+import fjallkartan.fjallkartan.offline.OfflineDownloadService
+import fjallkartan.fjallkartan.offline.OfflineRegionRepository
+import fjallkartan.fjallkartan.offline.OfflineStatus
 import fjallkartan.fjallkartan.settings.RemoteSettings
 import fjallkartan.fjallkartan.saved.FeaturedRoute
 import fjallkartan.fjallkartan.saved.FeaturedRoutes
@@ -25,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.maplibre.android.geometry.LatLngBounds
 
 class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val _slopeVisible = MutableStateFlow(false)
@@ -56,6 +60,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         SavedPin::id,
     )
     private val placeSearch by lazy { PlaceSearch(application) }
+    private val offlineRepository = OfflineRegionRepository.get(application)
 
     private val _savedRoutes = MutableStateFlow(routeStore.load().sortedByDescending(SavedRoute::createdAt))
     val savedRoutes = _savedRoutes.asStateFlow()
@@ -73,9 +78,21 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _routeFitVersion = MutableStateFlow(0)
     val routeFitVersion = _routeFitVersion.asStateFlow()
+    val offlineRegions = offlineRepository.regions
+    val offlineError = offlineRepository.lastError
 
     init {
         RemoteSettings.refresh()
+        viewModelScope.launch {
+            var serviceStarted = false
+            offlineRegions.collect { regions ->
+                val hasActiveDownload = regions.any { it.status == OfflineStatus.Downloading }
+                if (hasActiveDownload && !serviceStarted) {
+                    OfflineDownloadService.ensureRunning(getApplication())
+                }
+                serviceStarted = hasActiveDownload
+            }
+        }
     }
 
     fun toggleSlope() {
@@ -189,6 +206,29 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     private fun savePin(pin: SavedPin) {
         pinStore.save(pin)
         _savedPins.value = pinStore.load().sortedByDescending(SavedPin::createdAt)
+    }
+
+    fun startOfflineDownload(name: String, bounds: LatLngBounds) {
+        if (offlineRepository.startDownload(name, bounds)) {
+            OfflineDownloadService.ensureRunning(getApplication())
+        }
+    }
+
+    fun pauseOfflineRegion(id: String) {
+        offlineRepository.pause(id)
+    }
+
+    fun resumeOfflineRegion(id: String) {
+        offlineRepository.resume(id)
+        OfflineDownloadService.ensureRunning(getApplication())
+    }
+
+    fun deleteOfflineRegion(id: String) {
+        offlineRepository.delete(id)
+    }
+
+    fun clearOfflineError() {
+        offlineRepository.clearError()
     }
 
     private fun refreshElevation() {

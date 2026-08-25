@@ -14,7 +14,9 @@ import java.net.Socket
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import okhttp3.Dispatcher
 import okhttp3.OkHttpClient
 import okhttp3.Request
 
@@ -27,6 +29,13 @@ object KartverketTileProxy {
 
     private val client = OkHttpClient.Builder()
         .cache(null)
+        .dispatcher(
+            Dispatcher().apply {
+                maxRequests = 64
+                maxRequestsPerHost = 32
+            },
+        )
+        .callTimeout(15, TimeUnit.SECONDS)
         .build()
     private val executor: ExecutorService = Executors.newCachedThreadPool { runnable ->
         Thread(runnable, "kartverket-proxy-worker").apply { isDaemon = true }
@@ -38,6 +47,14 @@ object KartverketTileProxy {
     var tileUrlTemplate: String? = null
         private set
 
+    @Volatile
+    var norwaySlopeUrlTemplate: String? = null
+        private set
+
+    @Volatile
+    var swedenSlopeUrlTemplate: String? = null
+        private set
+
     fun start() {
         if (!started.compareAndSet(false, true)) return
         runCatching {
@@ -47,7 +64,9 @@ object KartverketTileProxy {
             }
         }.onSuccess { server ->
             serverSocket = server
-            tileUrlTemplate = "http://127.0.0.1:$PORT/{z}/{x}/{y}.png"
+            tileUrlTemplate = proxyTemplate("kartverket")
+            norwaySlopeUrlTemplate = proxyTemplate("norway-slope")
+            swedenSlopeUrlTemplate = proxyTemplate("sweden-slope")
             executor.execute { acceptConnections(server) }
             Log.d(TAG, "Listening on 127.0.0.1:$PORT")
         }.onFailure { error ->
@@ -55,6 +74,8 @@ object KartverketTileProxy {
             Log.e(TAG, "Could not start local tile proxy", error)
         }
     }
+
+    fun offlineStyleUrl(): String = "http://127.0.0.1:$PORT/style.json"
 
     private fun acceptConnections(server: ServerSocket) {
         while (!server.isClosed) {
@@ -71,24 +92,48 @@ object KartverketTileProxy {
         socket.use {
             socket.soTimeout = 15_000
             val path = readRequestPath(socket)
-            val tile = path?.let(::parseTile)
-            if (tile == null) {
+            if (path?.substringBefore('?') == "/style.json") {
+                respond(
+                    socket,
+                    200,
+                    "OK",
+                    MapStyle.json().toByteArray(StandardCharsets.UTF_8),
+                    "application/json",
+                )
+                return
+            }
+            val requestTile = path?.let(::parseRequestTile)
+            if (requestTile == null) {
                 respond(socket, 400, "Bad Request")
                 return
             }
 
             val request = Request.Builder()
-                .url(RemoteSettings.tileUrl(TileServer.Kartverket, tile.z, tile.x, tile.y))
+                .url(
+                    RemoteSettings.tileUrl(
+                        requestTile.source,
+                        requestTile.tile.z,
+                        requestTile.tile.x,
+                        requestTile.tile.y,
+                    ),
+                )
                 .build()
             try {
                 client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) {
+                        if (requestTile.source.isSlope && response.code == 404) {
+                            respond(socket, 200, "OK", TRANSPARENT_PNG, "image/png")
+                            return
+                        }
                         val status = if (isRetryable(response.code)) response.code else 404
                         respond(socket, status, reasonPhrase(status))
                         return
                     }
                     val original = response.body.bytes()
-                    val body = if (tile.z >= REWRITE_MINIMUM_ZOOM) {
+                    val body = if (
+                        requestTile.source == TileServer.Kartverket &&
+                        requestTile.tile.z >= REWRITE_MINIMUM_ZOOM
+                    ) {
                         NoDataFill.rewrite(original)
                     } else {
                         original
@@ -99,7 +144,11 @@ object KartverketTileProxy {
                     respond(socket, 200, "OK", body, "image/png", headers)
                 }
             } catch (error: Exception) {
-                Log.e(TAG, "Tile ${tile.z}/${tile.x}/${tile.y} failed", error)
+                Log.e(
+                    TAG,
+                    "Tile ${requestTile.tile.z}/${requestTile.tile.x}/${requestTile.tile.y} failed",
+                    error,
+                )
                 respond(socket, 503, "Service Unavailable")
             }
         }
@@ -157,22 +206,45 @@ object KartverketTileProxy {
     }
 
     internal data class Tile(val z: Int, val x: Int, val y: Int)
+    internal data class RequestTile(val source: TileServer, val tile: Tile)
 
     internal fun parseTile(path: String): Tile? {
+        return parseRequestTile(path)?.tile
+    }
+
+    internal fun parseRequestTile(path: String): RequestTile? {
         val parts = path
             .substringBefore('?')
             .removePrefix("/")
             .removeSuffix(".png")
             .split('/')
-        if (parts.size != 3) return null
-        return Tile(
-            z = parts[0].toIntOrNull() ?: return null,
-            x = parts[1].toIntOrNull() ?: return null,
-            y = parts[2].toIntOrNull() ?: return null,
+        val (source, tileParts) = when (parts.size) {
+            3 -> TileServer.Kartverket to parts
+            4 -> source(parts[0]) to parts.drop(1)
+            else -> return null
+        }
+        source ?: return null
+        return RequestTile(
+            source,
+            Tile(
+                z = tileParts[0].toIntOrNull() ?: return null,
+                x = tileParts[1].toIntOrNull() ?: return null,
+                y = tileParts[2].toIntOrNull() ?: return null,
+            ),
         )
     }
 
     internal fun isRetryable(status: Int): Boolean = status == 429 || status >= 500
+
+    private fun proxyTemplate(source: String): String =
+        "http://127.0.0.1:$PORT/$source/{z}/{x}/{y}.png"
+
+    private fun source(value: String): TileServer? = when (value) {
+        "kartverket" -> TileServer.Kartverket
+        "norway-slope" -> TileServer.NorwaySlope
+        "sweden-slope" -> TileServer.SwedenSlope
+        else -> null
+    }
 
     private fun reasonPhrase(status: Int): String = when (status) {
         400 -> "Bad Request"
@@ -183,6 +255,14 @@ object KartverketTileProxy {
         503 -> "Service Unavailable"
         504 -> "Gateway Timeout"
         else -> "Error"
+    }
+
+    private val TRANSPARENT_PNG by lazy {
+        val bitmap = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
+        val output = ByteArrayOutputStream()
+        bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
+        bitmap.recycle()
+        output.toByteArray()
     }
 
     object NoDataFill {

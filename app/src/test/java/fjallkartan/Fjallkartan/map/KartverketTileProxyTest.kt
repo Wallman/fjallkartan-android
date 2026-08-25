@@ -13,6 +13,13 @@ class KartverketTileProxyTest {
             KartverketTileProxy.Tile(15, 17_123, 9_234),
             KartverketTileProxy.parseTile("/15/17123/9234.png"),
         )
+        assertEquals(
+            KartverketTileProxy.RequestTile(
+                TileServer.SwedenSlope,
+                KartverketTileProxy.Tile(13, 4_000, 2_000),
+            ),
+            KartverketTileProxy.parseRequestTile("/sweden-slope/13/4000/2000.png"),
+        )
         assertNull(KartverketTileProxy.parseTile("/not/a/tile.png"))
     }
 

@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.LruCache
 import fjallkartan.fjallkartan.map.TileServer
+import fjallkartan.fjallkartan.map.TilePyramid
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -23,6 +24,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.maplibre.android.geometry.LatLngBounds
 
 class ElevationService(
     context: Context,
@@ -56,24 +58,27 @@ class ElevationService(
         keys: List<TileKey>,
         onProgress: (done: Int, total: Int, bytes: Long) -> Unit = { _, _, _ -> },
     ) {
-        var done = 0
+        val distinctKeys = keys.distinct()
+        var done = distinctKeys.count(::isCached)
         var bytes = 0L
-        for (key in keys.distinct()) {
+        for (key in distinctKeys) {
+            val wasCached = isCached(key)
             val before = file(key).takeIf(File::exists)?.length() ?: 0
             tile(key)
             val after = file(key).takeIf(File::exists)?.length() ?: 0
             bytes += (after - before).coerceAtLeast(0)
-            done += 1
-            onProgress(done, keys.size, bytes)
+            if (!wasCached && isCached(key)) done += 1
+            onProgress(done, distinctKeys.size, bytes)
         }
     }
 
-    fun isCached(key: TileKey): Boolean = file(key).exists()
+    fun isCached(key: TileKey): Boolean = file(key).exists() || missingFile(key).exists()
 
     fun delete(keys: Set<TileKey>) {
         keys.forEach { key ->
             memory.remove(key)
             file(key).delete()
+            missingFile(key).delete()
         }
     }
 
@@ -96,6 +101,7 @@ class ElevationService(
 
     private suspend fun loadTile(key: TileKey): HeightTile? = withContext(Dispatchers.IO) {
         val disk = file(key)
+        if (missingFile(key).exists()) return@withContext null
         if (disk.exists()) {
             HeightTile.decode(disk.readBytes())?.let { return@withContext it }
             disk.delete()
@@ -105,6 +111,13 @@ class ElevationService(
             .url(TileServer.Elevation.url(ZOOM, key.x, key.y))
             .build()
         client.newCall(request).execute().use { response ->
+            if (response.code == 404 || response.code == 410) {
+                missingFile(key).apply {
+                    parentFile?.mkdirs()
+                    createNewFile()
+                }
+                return@withContext null
+            }
             if (!response.isSuccessful) return@withContext null
             val bytes = response.body.bytes()
             val decoded = HeightTile.decode(bytes) ?: return@withContext null
@@ -114,11 +127,14 @@ class ElevationService(
             if (!temporary.renameTo(disk)) {
                 temporary.delete()
             }
+            missingFile(key).delete()
             decoded
         }
     }
 
     private fun file(key: TileKey): File = File(diskDirectory, key.relativePath)
+
+    private fun missingFile(key: TileKey): File = File(diskDirectory, "${key.relativePath}.missing")
 
     companion object {
         const val ZOOM = 12
@@ -142,6 +158,21 @@ class ElevationService(
 
         fun tileKeys(coordinates: List<GeoCoordinate>): List<TileKey> {
             return coordinates.mapNotNull(::pixelAddress).map(PixelAddress::key).distinct()
+        }
+
+        fun tileKeys(bounds: LatLngBounds): List<TileKey> {
+            val range = TilePyramid.tileRange(
+                bounds.latitudeNorth,
+                bounds.longitudeEast,
+                bounds.latitudeSouth,
+                bounds.longitudeWest,
+                ZOOM,
+            ) ?: return emptyList()
+            return buildList {
+                for (x in range.minX..range.maxX) {
+                    for (y in range.minY..range.maxY) add(TileKey(x, y))
+                }
+            }
         }
     }
 }

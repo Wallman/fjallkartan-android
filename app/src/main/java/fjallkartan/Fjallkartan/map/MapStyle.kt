@@ -16,8 +16,22 @@ object MapStyle {
         val sources = JSONObject()
             .put("lantmateriet", rasterSource(settings.lantmaterietUrl, 0, 16))
             .put("kartverket", rasterSource(kartverketTemplate, 0, 18))
-            .put("norway-slope", rasterSource(settings.norwaySlopeUrl, 5, 16))
-            .put("sweden-slope", rasterSource(settings.swedenSlopeUrl, 5, 13))
+            .put(
+                "norway-slope",
+                rasterSource(
+                    KartverketTileProxy.norwaySlopeUrlTemplate ?: settings.norwaySlopeUrl,
+                    5,
+                    16,
+                ),
+            )
+            .put(
+                "sweden-slope",
+                rasterSource(
+                    KartverketTileProxy.swedenSlopeUrlTemplate ?: settings.swedenSlopeUrl,
+                    5,
+                    13,
+                ),
+            )
 
         val layers = JSONArray()
             .put(rasterLayer("lantmateriet-layer", "lantmateriet"))
@@ -31,6 +45,8 @@ object MapStyle {
             .put("layers", layers)
             .toString()
     }
+
+    fun offlineUrl(): String = KartverketTileProxy.offlineStyleUrl()
 
     private fun rasterSource(url: String, minZoom: Int, maxZoom: Int): JSONObject {
         return JSONObject()

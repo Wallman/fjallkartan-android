@@ -23,4 +23,34 @@ object TilePyramid {
         ).toInt().coerceIn(0, n - 1)
         return x to y
     }
+
+    data class TileRange(val minX: Int, val maxX: Int, val minY: Int, val maxY: Int) {
+        val count: Int get() = (maxX - minX + 1) * (maxY - minY + 1)
+    }
+
+    fun tileRange(
+        north: Double,
+        east: Double,
+        south: Double,
+        west: Double,
+        zoom: Int,
+    ): TileRange? {
+        val northwest = tileCoordinate(north, west, zoom) ?: return null
+        val southeast = tileCoordinate(south, east, zoom) ?: return null
+        return TileRange(
+            minX = minOf(northwest.first, southeast.first),
+            maxX = maxOf(northwest.first, southeast.first),
+            minY = minOf(northwest.second, southeast.second),
+            maxY = maxOf(northwest.second, southeast.second),
+        )
+    }
+
+    fun tilePositionCount(
+        north: Double,
+        east: Double,
+        south: Double,
+        west: Double,
+    ): Int = (MIN_ZOOM..MAX_ZOOM).sumOf { zoom ->
+        tileRange(north, east, south, west, zoom)?.count ?: 0
+    }
 }
