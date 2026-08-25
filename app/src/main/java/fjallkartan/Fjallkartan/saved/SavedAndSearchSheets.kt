@@ -3,6 +3,7 @@ package fjallkartan.fjallkartan.saved
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
@@ -18,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -42,10 +44,14 @@ fun PlaceSearchSheet(
     onDismiss: () -> Unit,
 ) {
     var query by remember { mutableStateOf("") }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     LaunchedEffect(query) { onQueryChanged(query) }
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(bottom = 24.dp)) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+    ) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight(0.72f).padding(bottom = 24.dp)) {
             TextField(
                 value = query,
                 onValueChange = { query = it },
@@ -53,7 +59,7 @@ fun PlaceSearchSheet(
                 label = { Text("Search places") },
                 singleLine = true,
             )
-            LazyColumn {
+            LazyColumn(Modifier.weight(1f)) {
                 items(results, key = PlaceResult::id) { place ->
                     ListItem(
                         headlineContent = { Text(place.name) },
