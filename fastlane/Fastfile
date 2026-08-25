@@ -158,6 +158,18 @@ platform :android do
     )
   end
 
+  desc "Upload Google Play icon and other listing graphics without screenshots"
+  lane :graphics do
+    upload_to_play_store(
+      **play_upload_options,
+      skip_upload_aab: true,
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_screenshots: true
+    )
+  end
+
   desc "Upload metadata and screenshots without a binary"
   lane :store do
     check_play_metadata!

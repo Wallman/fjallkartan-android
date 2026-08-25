@@ -17,6 +17,6 @@ local.properties
 fastlane/README.md
 fastlane/report.xml
 fastlane/test_output/
-fastlane/metadata/android/*/images/
+fastlane/metadata/android/*/images/phoneScreenshots/
 .bundle/
 vendor/bundle/

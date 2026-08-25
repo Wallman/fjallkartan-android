@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MyLocation
@@ -48,6 +49,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -124,6 +126,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val context = LocalContext.current
     var latitude by remember { mutableDoubleStateOf(67.0) }
     var zoom by remember { mutableDoubleStateOf(3.4) }
+    var bearing by remember { mutableDoubleStateOf(0.0) }
     var showElevation by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var showSavedRoutes by remember { mutableStateOf(false) }
@@ -264,6 +267,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             onCameraChanged = { camera ->
                 latitude = camera.target?.latitude ?: latitude
                 zoom = camera.zoom
+                bearing = camera.bearing
             },
         )
 
@@ -273,6 +277,15 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 .padding(top = 56.dp, end = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            if (kotlin.math.abs(bearing) > 0.5) {
+                MapControlButton(onClick = mapState::resetBearing) {
+                    Icon(
+                        Icons.Default.Explore,
+                        contentDescription = "Reset compass to north",
+                        modifier = Modifier.rotate(-bearing.toFloat()),
+                    )
+                }
+            }
             MapControlButton(onClick = { showSearch = true }) {
                 Icon(Icons.Default.Search, contentDescription = "Search places")
             }
@@ -672,6 +685,7 @@ private class MapHolder {
             readyMap.uiSettings.apply {
                 isLogoEnabled = false
                 isAttributionEnabled = false
+                isCompassEnabled = false
                 isTiltGesturesEnabled = false
             }
             readyMap.setLatLngBoundsForCameraTarget(
@@ -724,6 +738,15 @@ private class MapHolder {
         container = null
         pins = emptyList()
         shownSearchPlace = null
+    }
+
+    fun resetBearing() {
+        val readyMap = map ?: return
+        readyMap.animateCamera(
+            CameraUpdateFactory.newCameraPosition(
+                CameraPosition.Builder(readyMap.cameraPosition).bearing(0.0).build(),
+            ),
+        )
     }
 
     fun setSlopeVisible(visible: Boolean) {

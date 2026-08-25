@@ -53,6 +53,7 @@ Use `$HOME/Library/Android/sdk/platform-tools/adb` when `adb` is not on `PATH`.
 | `fastlane/Fastfile` | Google Play metadata, build, internal upload, promotion and pull lanes |
 | `fastlane/metadata/android/` | Checked-in source of truth for Google Play listing copy |
 | `tools/import_play_metadata.py` | Converts the iOS App Store copy into Google Play metadata |
+| `tools/import_app_icon.py` | Generates launcher, themed and Google Play icons from the iOS source artwork |
 
 ## Architecture notes
 
@@ -125,6 +126,7 @@ fastlane android validate_credentials
 fastlane android build
 fastlane android metadata
 fastlane android screenshots
+fastlane android graphics
 fastlane android store
 fastlane android internal
 fastlane android promote from:internal to:production status:draft
