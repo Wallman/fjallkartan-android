@@ -51,6 +51,7 @@ dependencies {
     implementation(libs.kotlinx.coroutines.android)
     implementation(libs.maplibre)
     implementation(libs.okhttp)
+    implementation(libs.play.review)
     debugImplementation(libs.androidx.compose.ui.tooling)
     testImplementation(libs.junit)
     testImplementation(libs.json)

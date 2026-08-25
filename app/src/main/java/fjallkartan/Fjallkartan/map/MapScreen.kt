@@ -1,6 +1,7 @@
 package fjallkartan.fjallkartan.map
 
 import android.Manifest
+import android.app.Activity
 import android.content.pm.PackageManager
 import android.os.Bundle
 import android.os.Build
@@ -22,12 +23,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.DownloadForOffline
-import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Layers
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.Icon
@@ -71,6 +69,17 @@ import fjallkartan.fjallkartan.saved.SavedPin
 import fjallkartan.fjallkartan.saved.SavedRoutesSheet
 import fjallkartan.fjallkartan.search.PlaceResult
 import fjallkartan.fjallkartan.offline.OfflineRegionsSheet
+import fjallkartan.fjallkartan.offline.OfflineStatus
+import fjallkartan.fjallkartan.product.AboutSheet
+import fjallkartan.fjallkartan.product.DebugSheet
+import fjallkartan.fjallkartan.product.GuideTipBadge
+import fjallkartan.fjallkartan.product.GuideTips
+import fjallkartan.fjallkartan.product.LegendSheet
+import fjallkartan.fjallkartan.product.OnboardingSheet
+import fjallkartan.fjallkartan.product.ReviewPrompter
+import fjallkartan.fjallkartan.product.ToolsSheet
+import com.google.android.play.core.review.ReviewManagerFactory
+import kotlinx.coroutines.delay
 import kotlin.math.cos
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -122,6 +131,22 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     var selectedPin by remember { mutableStateOf<SavedPin?>(null) }
     var isPickingOffline by remember { mutableStateOf(false) }
     var showOfflineRegions by remember { mutableStateOf(false) }
+    var showTools by remember { mutableStateOf(false) }
+    var showLegend by remember { mutableStateOf(false) }
+    var showAbout by remember { mutableStateOf(false) }
+    var showDebug by remember { mutableStateOf(false) }
+    var showZoom by remember { mutableStateOf(false) }
+    val productPreferences = remember {
+        context.getSharedPreferences("product-ui", android.content.Context.MODE_PRIVATE)
+    }
+    var showGuide by remember { mutableStateOf(!productPreferences.getBoolean("guide-shown", false)) }
+    var guideTip by remember { mutableStateOf<String?>(null) }
+    val guideTips = remember { GuideTips(context) }
+    val reviewPrompter = remember { ReviewPrompter(context) }
+    var reviewPending by remember { mutableStateOf(false) }
+    var measurementStartVersion by remember { mutableStateOf<Int?>(null) }
+    val knownCompletedRegions = remember { mutableSetOf<String>() }
+    var offlineRegionsInitialized by remember { mutableStateOf(false) }
     var pendingOfflineBounds by remember { mutableStateOf<LatLngBounds?>(null) }
     val mapState = remember { MapHolder() }
 
@@ -135,6 +160,73 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val notificationPermission = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) {}
+
+    LaunchedEffect(Unit) {
+        reviewPrompter.noteAppOpen()
+    }
+    LaunchedEffect(measurement.isMeasuring) {
+        if (measurement.isMeasuring) {
+            measurementStartVersion = measurement.version
+            if (guideTips.take("measurement")) {
+                guideTip = "Draw with one finger. Use two fingers to move or zoom."
+            }
+        } else {
+            val startedAt = measurementStartVersion
+            if (startedAt != null && measurement.version != startedAt) {
+                reviewPending = reviewPrompter.recordMeasurement(measurement.totalMeters) || reviewPending
+            }
+            measurementStartVersion = null
+        }
+    }
+    LaunchedEffect(offlineRegions) {
+        val completed = offlineRegions.filter { it.status == OfflineStatus.Complete }.mapTo(mutableSetOf()) { it.id }
+        if (offlineRegionsInitialized) {
+            if (completed.any { it !in knownCompletedRegions }) {
+                reviewPending = reviewPrompter.recordOfflineCompletion() || reviewPending
+            }
+        } else {
+            offlineRegionsInitialized = true
+        }
+        knownCompletedRegions.clear()
+        knownCompletedRegions.addAll(completed)
+    }
+    LaunchedEffect(guideTip) {
+        if (guideTip != null) {
+            delay(7_000)
+            guideTip = null
+        }
+    }
+    LaunchedEffect(
+        reviewPending,
+        measurement.isMeasuring,
+        isPickingOffline,
+        showSearch,
+        showSavedRoutes,
+        showOfflineRegions,
+        showElevation,
+        showTools,
+        showLegend,
+        showAbout,
+        showGuide,
+    ) {
+        if (
+            reviewPending && !measurement.isMeasuring && !isPickingOffline &&
+            !showSearch && !showSavedRoutes && !showOfflineRegions && !showElevation &&
+            !showTools && !showLegend && !showAbout && !showGuide
+        ) {
+            delay(3_000)
+            if (reviewPrompter.consume()) {
+                val activity = context as? Activity
+                if (activity != null) {
+                    val manager = ReviewManagerFactory.create(context)
+                    manager.requestReviewFlow().addOnCompleteListener { task ->
+                        if (task.isSuccessful) manager.launchReviewFlow(activity, task.result)
+                    }
+                }
+            }
+            reviewPending = false
+        }
+    }
 
     LaunchedEffect(slopeVisible) {
         mapState.setSlopeVisible(slopeVisible)
@@ -205,28 +297,8 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     tint = if (measurement.isMeasuring) Color(0xFFF28C28) else Color.Black,
                 )
             }
-            MapControlButton(onClick = { showSavedRoutes = true }) {
-                Icon(Icons.Default.Bookmarks, contentDescription = "Saved routes")
-            }
-            if (!measurement.isEmpty) {
-                MapControlButton(onClick = { showSaveRoute = true }) {
-                    Icon(Icons.Default.Save, contentDescription = "Save route")
-                }
-            }
-            MapControlButton(onClick = {
-                isPickingOffline = !isPickingOffline
-                if (isPickingOffline && Build.VERSION.SDK_INT >= 33) {
-                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            }) {
-                Icon(
-                    Icons.Default.DownloadForOffline,
-                    contentDescription = "Choose offline area",
-                    tint = if (isPickingOffline) Color(0xFFF28C28) else Color.Black,
-                )
-            }
-            MapControlButton(onClick = { showOfflineRegions = true }) {
-                Icon(Icons.Default.Folder, contentDescription = "Offline maps")
+            MapControlButton(onClick = { showTools = true }) {
+                Icon(Icons.Default.MoreVert, contentDescription = "More map tools")
             }
             if (measurement.isMeasuring) {
                 MapControlButton(
@@ -281,6 +353,21 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 .align(Alignment.BottomStart)
                 .padding(start = 12.dp, bottom = 44.dp),
         )
+        if (showZoom) {
+            Text(
+                "z${"%.2f".format(zoom)}",
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 54.dp)
+                    .background(Color.White.copy(alpha = 0.9f), CircleShape)
+                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                color = Color.Black,
+            )
+        }
+        guideTip?.let {
+            GuideTipBadge(
+                it,
+                modifier = Modifier.align(Alignment.TopCenter).padding(top = 98.dp, start = 28.dp, end = 28.dp),
+            )
+        }
 
         Row(
             modifier = Modifier
@@ -311,6 +398,46 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
 
     if (showElevation && elevation.hasData) {
         ElevationProfileSheet(state = elevation, onDismiss = { showElevation = false })
+    }
+    if (showTools) {
+        ToolsSheet(
+            canSaveRoute = !measurement.isEmpty,
+            onSavedRoutes = { showTools = false; showSavedRoutes = true },
+            onSaveRoute = { showTools = false; showSaveRoute = true },
+            onChooseOfflineArea = {
+                showTools = false
+                isPickingOffline = true
+                if (guideTips.take("offline")) guideTip = "Move and zoom until the dashed box covers your area."
+                if (Build.VERSION.SDK_INT >= 33) {
+                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                }
+            },
+            onOfflineMaps = { showTools = false; showOfflineRegions = true },
+            onLegend = { showTools = false; showLegend = true },
+            onAbout = { showTools = false; showAbout = true },
+            onDismiss = { showTools = false },
+        )
+    }
+    if (showLegend) LegendSheet { showLegend = false }
+    if (showGuide) {
+        OnboardingSheet {
+            showGuide = false
+            productPreferences.edit().putBoolean("guide-shown", true).apply()
+        }
+    }
+    if (showAbout) {
+        AboutSheet(
+            onDismiss = { showAbout = false },
+            onShowGuide = { showAbout = false; showGuide = true },
+            onShowDebug = { showAbout = false; showDebug = true },
+        )
+    }
+    if (showDebug) {
+        DebugSheet(
+            showZoom = showZoom,
+            onShowZoomChanged = { showZoom = it },
+            onDismiss = { showDebug = false },
+        )
     }
     if (showSearch) {
         PlaceSearchSheet(
