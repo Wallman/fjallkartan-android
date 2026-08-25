@@ -1,4 +1,4 @@
-package fjallkartan.Fjallkartan
+package fjallkartan.fjallkartan
 
 import org.junit.Test
 

@@ -2,6 +2,7 @@ package fjallkartan.fjallkartan
 
 import android.app.Application
 import android.util.Log
+import fjallkartan.fjallkartan.map.KartverketTileProxy
 import fjallkartan.fjallkartan.settings.RemoteSettings
 import org.maplibre.android.MapLibre
 import org.maplibre.android.offline.OfflineManager
@@ -21,5 +22,6 @@ class FjallkartanApplication : Application() {
             },
         )
         RemoteSettings.initialize(this)
+        KartverketTileProxy.start()
     }
 }

@@ -8,7 +8,10 @@ object MapStyle {
     const val NORWAY_SLOPE_LAYER = "norway-slope-layer"
     const val SWEDEN_SLOPE_LAYER = "sweden-slope-layer"
 
-    fun json(kartverketTemplate: String = RemoteSettings.settings.kartverketUrl): String {
+    fun json(
+        kartverketTemplate: String =
+            KartverketTileProxy.tileUrlTemplate ?: RemoteSettings.settings.kartverketUrl,
+    ): String {
         val settings = RemoteSettings.settings
         val sources = JSONObject()
             .put("lantmateriet", rasterSource(settings.lantmaterietUrl, 0, 16))
