@@ -95,7 +95,7 @@ Use `$HOME/Library/Android/sdk/platform-tools/adb` when `adb` is not on `PATH`.
 
 ### Product and localization
 
-- Product UI includes a six-page first-run guide, contextual hints, a searchable two-country legend, About/debug tools and Play in-app review prompting.
+- Product UI includes a six-page guide opened from About, contextual hints, a searchable two-country legend, About/debug tools and Play in-app review prompting. Do not present the full guide automatically at app launch.
 - Review eligibility requires at least three app opens plus either one completed offline region or three completed measurements of at least 500 m.
 - Review prompts are limited to one per app version and at least 120 days apart.
 - The iOS `Localizable.xcstrings` file is the translation source of truth.

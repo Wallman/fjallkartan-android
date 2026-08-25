@@ -139,10 +139,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     var showAbout by remember { mutableStateOf(false) }
     var showDebug by remember { mutableStateOf(false) }
     var showZoom by remember { mutableStateOf(false) }
-    val productPreferences = remember {
-        context.getSharedPreferences("product-ui", android.content.Context.MODE_PRIVATE)
-    }
-    var showGuide by remember { mutableStateOf(!productPreferences.getBoolean("guide-shown", false)) }
+    var showGuide by remember { mutableStateOf(false) }
     var guideTip by remember { mutableStateOf<String?>(null) }
     val guideTips = remember { GuideTips(context) }
     val reviewPrompter = remember { ReviewPrompter(context) }
@@ -435,10 +432,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     }
     if (showLegend) LegendSheet { showLegend = false }
     if (showGuide) {
-        OnboardingSheet {
-            showGuide = false
-            productPreferences.edit().putBoolean("guide-shown", true).apply()
-        }
+        OnboardingSheet { showGuide = false }
     }
     if (showAbout) {
         AboutSheet(

@@ -1,6 +1,5 @@
 package fjallkartan.fjallkartan
 
-import android.content.Context
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -20,8 +19,6 @@ class ProductUiInstrumentedTest {
 
     @Test
     fun exposesPrimaryMapControlsToAccessibility() {
-        context.getSharedPreferences("product-ui", Context.MODE_PRIVATE)
-            .edit().putBoolean("guide-shown", true).commit()
         ActivityScenario.launch(MainActivity::class.java).use {
             val device = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
             assertTrue(device.wait(Until.hasObject(By.desc("Search places")), 5_000))
