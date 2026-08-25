@@ -1,5 +1,6 @@
 package fjallkartan.fjallkartan.map
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
@@ -24,6 +25,7 @@ import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
 
+@SuppressLint("ViewConstructor")
 internal class MapContainerView(
     context: Context,
     val mapView: MapView,
@@ -259,6 +261,7 @@ internal class MeasureCaptureView(context: Context) : View(context) {
             }
             MotionEvent.ACTION_UP -> {
                 if (!manipulatingMap) finishStroke()
+                performClick()
                 clearStroke()
             }
             MotionEvent.ACTION_POINTER_UP -> {
@@ -266,6 +269,11 @@ internal class MeasureCaptureView(context: Context) : View(context) {
             }
             MotionEvent.ACTION_CANCEL -> clearStroke()
         }
+        return true
+    }
+
+    override fun performClick(): Boolean {
+        super.performClick()
         return true
     }
 

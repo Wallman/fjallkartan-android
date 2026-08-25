@@ -3,6 +3,7 @@ package fjallkartan.fjallkartan.measurement
 import kotlin.math.asin
 import kotlin.math.cos
 import kotlin.math.roundToInt
+import java.util.Locale
 import kotlin.math.sin
 import kotlin.math.sqrt
 
@@ -134,7 +135,7 @@ object DistanceMeasurement {
         return if (meters < 1_000) {
             "${meters.roundToInt()} m"
         } else {
-            String.format("%.2f km", meters / 1_000)
+            String.format(Locale.ROOT, "%.2f km", meters / 1_000)
         }
     }
 
@@ -144,7 +145,7 @@ object DistanceMeasurement {
         return if (rounded == rounded.toInt().toDouble()) {
             "${rounded.toInt()} km"
         } else {
-            String.format("%.1f km", rounded)
+            String.format(Locale.ROOT, "%.1f km", rounded)
         }
     }
 

@@ -3,6 +3,11 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+val releaseKeystore = providers.environmentVariable("FJALLKARTAN_KEYSTORE").orNull
+val releaseStorePassword = providers.environmentVariable("FJALLKARTAN_STORE_PASSWORD").orNull
+val releaseKeyAlias = providers.environmentVariable("FJALLKARTAN_KEY_ALIAS").orNull
+val releaseKeyPassword = providers.environmentVariable("FJALLKARTAN_KEY_PASSWORD").orNull
+
 android {
     namespace = "fjallkartan.fjallkartan"
     compileSdk {
@@ -17,13 +22,40 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        ndk {
+            abiFilters += setOf("arm64-v8a", "x86_64")
+        }
     }
 
     buildTypes {
         release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro",
+            )
             optimization {
                 enable = false
             }
+        }
+    }
+    if (
+        releaseKeystore != null &&
+        releaseStorePassword != null &&
+        releaseKeyAlias != null &&
+        releaseKeyPassword != null
+    ) {
+        signingConfigs {
+            create("release") {
+                storeFile = file(releaseKeystore)
+                storePassword = releaseStorePassword
+                keyAlias = releaseKeyAlias
+                keyPassword = releaseKeyPassword
+            }
+        }
+        buildTypes.named("release") {
+            signingConfig = signingConfigs.getByName("release")
         }
     }
     buildFeatures {
@@ -57,4 +89,5 @@ dependencies {
     testImplementation(libs.json)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)
+    androidTestImplementation(libs.androidx.test.uiautomator)
 }
