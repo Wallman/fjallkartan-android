@@ -85,6 +85,8 @@ import kotlinx.coroutines.delay
 import kotlin.math.cos
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.annotations.Marker
+import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
@@ -652,7 +654,7 @@ private class MapHolder {
     private var routeCoordinates: List<GeoCoordinate> = emptyList()
     private var routeMeters: Double = 0.0
     private var pins: List<SavedPin> = emptyList()
-    private var shownSearchPlace: PlaceResult? = null
+    private var searchMarker: Marker? = null
     private var selectedSearchPlaceId: Long? = null
     private var lastFitVersion = 0
     private var offlinePreview = false
@@ -722,7 +724,7 @@ private class MapHolder {
                 setTracking(tracking)
                 setMeasuring(measuring)
                 renderRoute()
-                container.updatePins(pins, shownSearchPlace)
+                container.updatePins(pins)
             }
         }
         return container
@@ -733,7 +735,7 @@ private class MapHolder {
         mapView = null
         container = null
         pins = emptyList()
-        shownSearchPlace = null
+        searchMarker = null
     }
 
     fun resetBearing() {
@@ -868,16 +870,23 @@ private class MapHolder {
     fun updatePins(pins: List<SavedPin>) {
         if (this.pins == pins) return
         this.pins = pins
-        container?.updatePins(pins, shownSearchPlace)
+        container?.updatePins(pins)
     }
 
     fun showSearchPlace(place: PlaceResult?) {
         val readyMap = map ?: return
         if (selectedSearchPlaceId == place?.id) return
         selectedSearchPlaceId = place?.id
-        shownSearchPlace = place
-        container?.updatePins(pins, place)
+        searchMarker?.let(readyMap::removeMarker)
+        searchMarker = null
         if (place != null) {
+            searchMarker = readyMap.addMarker(
+                MarkerOptions()
+                    .position(LatLng(place.coordinate.latitude, place.coordinate.longitude))
+                    .title(place.name)
+                    .snippet(place.subtitle.takeIf(String::isNotBlank)),
+            )
+            searchMarker?.let(readyMap::selectMarker)
             readyMap.animateCamera(
                 CameraUpdateFactory.newLatLngZoom(
                     LatLng(place.coordinate.latitude, place.coordinate.longitude),

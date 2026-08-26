@@ -17,7 +17,6 @@ import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.measurement.LineSimplifier
 import fjallkartan.fjallkartan.measurement.ScreenPoint
 import fjallkartan.fjallkartan.saved.SavedPin
-import fjallkartan.fjallkartan.search.PlaceResult
 import kotlin.math.hypot
 import kotlin.math.ln
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -56,9 +55,8 @@ internal class MapContainerView(
         pinOverlay.invalidate()
     }
 
-    fun updatePins(pins: List<SavedPin>, selectedPlace: PlaceResult?) {
+    fun updatePins(pins: List<SavedPin>) {
         pinOverlay.pins = pins
-        pinOverlay.selectedPlace = selectedPlace
         pinOverlay.invalidate()
     }
 }
@@ -66,7 +64,6 @@ internal class MapContainerView(
 internal class PinOverlay(context: Context) : View(context) {
     var map: MapLibreMap? = null
     var pins: List<SavedPin> = emptyList()
-    var selectedPlace: PlaceResult? = null
 
     private val density = resources.displayMetrics.density
     private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
@@ -75,42 +72,11 @@ internal class PinOverlay(context: Context) : View(context) {
         color = Color.WHITE
         strokeWidth = 3 * density
     }
-    private val text = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
-        textSize = 12 * density * resources.configuration.fontScale
-        textAlign = Paint.Align.CENTER
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-    }
-
     override fun onDraw(canvas: Canvas) {
         val projection = map?.projection ?: return
         pins.forEach { pin ->
             val point = projection.toScreenLocation(LatLng(pin.coordinate.latitude, pin.coordinate.longitude))
             drawPin(canvas, point, Color.rgb(242, 140, 40), 10 * density)
-        }
-        selectedPlace?.let { place ->
-            val point = projection.toScreenLocation(
-                LatLng(place.coordinate.latitude, place.coordinate.longitude),
-            )
-            drawPin(canvas, point, Color.rgb(29, 108, 191), 12 * density)
-            val width = text.measureText(place.name) + 18 * density
-            val top = point.y - 52 * density
-            fill.color = Color.WHITE
-            canvas.drawRoundRect(
-                point.x - width / 2,
-                top,
-                point.x + width / 2,
-                top + 28 * density,
-                14 * density,
-                14 * density,
-                fill,
-            )
-            canvas.drawText(
-                place.name,
-                point.x,
-                top + 14 * density - (text.descent() + text.ascent()) / 2,
-                text,
-            )
         }
     }
 
