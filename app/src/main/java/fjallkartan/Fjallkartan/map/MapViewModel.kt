@@ -30,6 +30,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.maplibre.android.geometry.LatLngBounds
 
+data class SearchSelection(val place: PlaceResult? = null, val token: Int = 0)
+
 class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val _slopeVisible = MutableStateFlow(false)
     val slopeVisible = _slopeVisible.asStateFlow()
@@ -72,7 +74,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     private val _searchResults = MutableStateFlow<List<PlaceResult>>(emptyList())
     val searchResults = _searchResults.asStateFlow()
-    private val _selectedPlace = MutableStateFlow<PlaceResult?>(null)
+    private val _selectedPlace = MutableStateFlow(SearchSelection())
     val selectedPlace = _selectedPlace.asStateFlow()
     private var searchJob: Job? = null
 
@@ -182,12 +184,12 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectPlace(place: PlaceResult?) {
-        _selectedPlace.value = place
+        _selectedPlace.value = SearchSelection(place, _selectedPlace.value.token + 1)
     }
 
     fun savePlace(place: PlaceResult) {
         savePin(SavedPin(coordinate = place.coordinate, name = place.name))
-        _selectedPlace.value = null
+        selectPlace(null)
     }
 
     fun dropPin(coordinate: GeoCoordinate) {

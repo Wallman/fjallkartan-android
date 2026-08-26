@@ -132,7 +132,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val savedRoutes by viewModel.savedRoutes.collectAsStateWithLifecycle()
     val savedPins by viewModel.savedPins.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
-    val selectedPlace by viewModel.selectedPlace.collectAsStateWithLifecycle()
+    val searchSelection by viewModel.selectedPlace.collectAsStateWithLifecycle()
     val routeFitVersion by viewModel.routeFitVersion.collectAsStateWithLifecycle()
     val offlineRegions by viewModel.offlineRegions.collectAsStateWithLifecycle()
     val offlineError by viewModel.offlineError.collectAsStateWithLifecycle()
@@ -269,7 +269,8 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             onStrokeFinished = viewModel::appendStroke,
             onPreviewChanged = viewModel::updatePreview,
             pins = savedPins,
-            selectedPlace = selectedPlace,
+            selectedPlace = searchSelection.place,
+            selectedPlaceToken = searchSelection.token,
             routeFitVersion = routeFitVersion,
             isPickingOffline = isPickingOffline,
             onDropPin = viewModel::dropPin,
@@ -600,6 +601,7 @@ private fun MapLibreView(
     measurement: MeasurementState,
     pins: List<SavedPin>,
     selectedPlace: PlaceResult?,
+    selectedPlaceToken: Int,
     routeFitVersion: Int,
     isPickingOffline: Boolean,
     onStrokeFinished: (List<GeoCoordinate>) -> Unit,
@@ -651,7 +653,7 @@ private fun MapLibreView(
             holder.setMeasuring(measurement.isMeasuring)
             holder.updateRoute(measurement.coordinates, measurement.committedMeters)
             holder.updatePins(pins)
-            holder.showSearchPlace(selectedPlace)
+            holder.showSearchPlace(selectedPlace, selectedPlaceToken)
             holder.fitRoute(measurement.coordinates, routeFitVersion)
             holder.setOfflinePreview(isPickingOffline)
         },
@@ -671,7 +673,7 @@ private class MapHolder {
     private var pins: List<SavedPin> = emptyList()
     private var searchMarker: Marker? = null
     private var selectedSearchPlace: PlaceResult? = null
-    private var selectedSearchPlaceId: Long? = null
+    private var shownSearchPlaceToken = -1
     private var lastFitVersion = 0
     private var offlinePreview = false
 
@@ -911,10 +913,10 @@ private class MapHolder {
         container?.updatePins(pins)
     }
 
-    fun showSearchPlace(place: PlaceResult?) {
+    fun showSearchPlace(place: PlaceResult?, token: Int) {
         val readyMap = map ?: return
-        if (selectedSearchPlaceId == place?.id) return
-        selectedSearchPlaceId = place?.id
+        if (shownSearchPlaceToken == token) return
+        shownSearchPlaceToken = token
         searchMarker?.let(readyMap::removeMarker)
         searchMarker = null
         selectedSearchPlace = place
@@ -1053,7 +1055,6 @@ private class MapHolder {
         searchMarker?.let { marker -> map?.removeMarker(marker) }
         searchMarker = null
         selectedSearchPlace = null
-        selectedSearchPlaceId = null
     }
 
     fun fitRoute(coordinates: List<GeoCoordinate>, version: Int) {
