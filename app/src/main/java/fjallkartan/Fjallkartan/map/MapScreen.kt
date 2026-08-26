@@ -287,7 +287,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 56.dp, end = 12.dp),
+                .padding(top = 110.dp, end = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             MapControlButton(onClick = { showSearch = true }) {
@@ -720,7 +720,6 @@ private class MapHolder {
                 isCompassEnabled = true
                 setCompassGravity(Gravity.TOP or Gravity.END)
                 setCompassMargins(0, (56 * density).toInt(), (12 * density).toInt(), 0)
-                setCompassFadeFacingNorth(false)
                 isTiltGesturesEnabled = false
             }
             readyMap.setInfoWindowAdapter { marker ->
