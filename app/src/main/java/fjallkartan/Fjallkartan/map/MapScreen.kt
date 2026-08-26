@@ -3,8 +3,17 @@ package fjallkartan.fjallkartan.map
 import android.Manifest
 import android.app.Activity
 import android.content.pm.PackageManager
+import android.graphics.Bitmap
+import android.graphics.Paint
+import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Build
+import android.view.Gravity
+import android.view.ViewGroup
+import android.widget.ImageButton
+import android.widget.ImageView
+import android.widget.LinearLayout
+import android.widget.TextView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -23,8 +32,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Bookmarks
 import androidx.compose.material.icons.filled.Explore
-import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
@@ -80,6 +89,7 @@ import fjallkartan.fjallkartan.product.LegendSheet
 import fjallkartan.fjallkartan.product.OnboardingSheet
 import fjallkartan.fjallkartan.product.ReviewPrompter
 import fjallkartan.fjallkartan.product.ToolsSheet
+import fjallkartan.fjallkartan.R
 import com.google.android.play.core.review.ReviewManagerFactory
 import kotlinx.coroutines.delay
 import kotlin.math.cos
@@ -87,6 +97,7 @@ import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
+import org.maplibre.android.annotations.IconFactory
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
@@ -263,6 +274,8 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             isPickingOffline = isPickingOffline,
             onDropPin = viewModel::dropPin,
             onPinSelected = { pinId -> selectedPin = savedPins.firstOrNull { it.id == pinId } },
+            onSaveSearchPlace = viewModel::savePlace,
+            onDismissSearchPlace = { viewModel.selectPlace(null) },
             onCameraChanged = { camera ->
                 latitude = camera.target?.latitude ?: latitude
                 zoom = camera.zoom
@@ -297,19 +310,15 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     tint = if (trackingEnabled) MaterialTheme.colorScheme.primary else Color.Black,
                 )
             }
-            MapControlButton(onClick = viewModel::toggleSlope) {
-                Icon(
-                    Icons.Default.Layers,
-                    contentDescription = "Show slope shading",
-                    tint = if (slopeVisible) Color(0xFFF28C28) else Color.Black,
-                )
-            }
             MapControlButton(onClick = viewModel::toggleMeasuring) {
                 Icon(
                     Icons.Default.Straighten,
                     contentDescription = "Measure distance",
                     tint = if (measurement.isMeasuring) Color(0xFFF28C28) else Color.Black,
                 )
+            }
+            MapControlButton(onClick = { showSavedRoutes = true }) {
+                Icon(Icons.Default.Bookmarks, contentDescription = "Saved routes")
             }
             MapControlButton(onClick = { showTools = true }) {
                 Icon(Icons.Default.MoreVert, contentDescription = "More map tools")
@@ -428,6 +437,8 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             },
             onOfflineMaps = { showTools = false; showOfflineRegions = true },
             onLegend = { showTools = false; showLegend = true },
+            slopeVisible = slopeVisible,
+            onToggleSlope = viewModel::toggleSlope,
             onAbout = { showTools = false; showAbout = true },
             onDismiss = { showTools = false },
         )
@@ -595,6 +606,8 @@ private fun MapLibreView(
     onPreviewChanged: (Double?) -> Unit,
     onDropPin: (GeoCoordinate) -> Unit,
     onPinSelected: (java.util.UUID) -> Unit,
+    onSaveSearchPlace: (PlaceResult) -> Unit,
+    onDismissSearchPlace: () -> Unit,
     onCameraChanged: (CameraPosition) -> Unit,
 ) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
@@ -607,6 +620,8 @@ private fun MapLibreView(
             onPreviewChanged = onPreviewChanged,
             onDropPin = onDropPin,
             onPinSelected = onPinSelected,
+            onSaveSearchPlace = onSaveSearchPlace,
+            onDismissSearchPlace = onDismissSearchPlace,
         )
     }
     val mapView = container.mapView
@@ -655,6 +670,7 @@ private class MapHolder {
     private var routeMeters: Double = 0.0
     private var pins: List<SavedPin> = emptyList()
     private var searchMarker: Marker? = null
+    private var selectedSearchPlace: PlaceResult? = null
     private var selectedSearchPlaceId: Long? = null
     private var lastFitVersion = 0
     private var offlinePreview = false
@@ -666,6 +682,8 @@ private class MapHolder {
         onPreviewChanged: (Double?) -> Unit,
         onDropPin: (GeoCoordinate) -> Unit,
         onPinSelected: (java.util.UUID) -> Unit,
+        onSaveSearchPlace: (PlaceResult) -> Unit,
+        onDismissSearchPlace: () -> Unit,
     ): MapContainerView {
         val mapView = MapView(context).also { it.onCreate(Bundle()) }
         val pinOverlay = PinOverlay(context)
@@ -685,6 +703,25 @@ private class MapHolder {
                 isAttributionEnabled = false
                 isCompassEnabled = false
                 isTiltGesturesEnabled = false
+            }
+            readyMap.setInfoWindowAdapter { marker ->
+                val place = selectedSearchPlace
+                if (marker !== searchMarker || place == null) {
+                    null
+                } else {
+                    searchCallout(
+                        context = context,
+                        place = place,
+                        onSave = {
+                            removeSearchMarker()
+                            onSaveSearchPlace(place)
+                        },
+                        onDismiss = {
+                            removeSearchMarker()
+                            onDismissSearchPlace()
+                        },
+                    )
+                }
             }
             readyMap.setLatLngBoundsForCameraTarget(
                 LatLngBounds.Builder()
@@ -736,6 +773,7 @@ private class MapHolder {
         container = null
         pins = emptyList()
         searchMarker = null
+        selectedSearchPlace = null
     }
 
     fun resetBearing() {
@@ -879,12 +917,14 @@ private class MapHolder {
         selectedSearchPlaceId = place?.id
         searchMarker?.let(readyMap::removeMarker)
         searchMarker = null
+        selectedSearchPlace = place
         if (place != null) {
             searchMarker = readyMap.addMarker(
                 MarkerOptions()
                     .position(LatLng(place.coordinate.latitude, place.coordinate.longitude))
                     .title(place.name)
-                    .snippet(place.subtitle.takeIf(String::isNotBlank)),
+                    .snippet(place.subtitle.takeIf(String::isNotBlank))
+                    .icon(searchMarkerIcon(mapView?.context ?: return)),
             )
             searchMarker?.let(readyMap::selectMarker)
             readyMap.animateCamera(
@@ -895,6 +935,125 @@ private class MapHolder {
                 700,
             )
         }
+    }
+
+    private fun searchMarkerIcon(context: android.content.Context): org.maplibre.android.annotations.Icon {
+        val density = context.resources.displayMetrics.density
+        fun pixels(dp: Float) = dp * density
+        val size = pixels(36f).toInt()
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+        val center = pixels(18f)
+
+        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.rgb(242, 140, 40)
+            setShadowLayer(pixels(2f), 0f, pixels(1f), 0x40000000)
+        }
+        canvas.drawCircle(center, center, pixels(14f), fill)
+        canvas.drawCircle(
+            center,
+            center,
+            pixels(14f),
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.WHITE
+                style = Paint.Style.STROKE
+                strokeWidth = pixels(2f)
+            },
+        )
+
+        val glyph = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
+        canvas.drawCircle(center, pixels(15f), pixels(5.5f), glyph)
+        canvas.drawPath(
+            android.graphics.Path().apply {
+                moveTo(pixels(13.8f), pixels(18f))
+                lineTo(center, pixels(27f))
+                lineTo(pixels(22.2f), pixels(18f))
+                close()
+            },
+            glyph,
+        )
+        canvas.drawCircle(
+            center,
+            pixels(15f),
+            pixels(2.3f),
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.rgb(242, 140, 40)
+            },
+        )
+        return IconFactory.getInstance(context).fromBitmap(bitmap)
+    }
+
+    private fun searchCallout(
+        context: android.content.Context,
+        place: PlaceResult,
+        onSave: () -> Unit,
+        onDismiss: () -> Unit,
+    ): android.view.View {
+        val density = context.resources.displayMetrics.density
+        fun pixels(dp: Int) = (dp * density).toInt()
+
+        fun actionButton(
+            imageResource: Int,
+            description: String,
+            onClick: () -> Unit,
+        ) = ImageButton(context).apply {
+            setImageResource(imageResource)
+            contentDescription = description
+            background = null
+            scaleType = ImageView.ScaleType.CENTER
+            setPadding(pixels(8), pixels(8), pixels(8), pixels(8))
+            layoutParams = LinearLayout.LayoutParams(pixels(40), pixels(40))
+            setOnClickListener { onClick() }
+        }
+
+        val textColumn = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(pixels(190), ViewGroup.LayoutParams.WRAP_CONTENT)
+            addView(TextView(context).apply {
+                text = place.name
+                setTextColor(android.graphics.Color.BLACK)
+                textSize = 16f
+                maxLines = 1
+                ellipsize = android.text.TextUtils.TruncateAt.END
+            })
+            if (place.subtitle.isNotBlank()) {
+                addView(TextView(context).apply {
+                    text = place.subtitle
+                    setTextColor(android.graphics.Color.DKGRAY)
+                    textSize = 12f
+                    maxLines = 1
+                    ellipsize = android.text.TextUtils.TruncateAt.END
+                })
+            }
+        }
+
+        val bubble = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = ViewGroup.LayoutParams(pixels(286), pixels(56))
+            minimumWidth = pixels(286)
+            minimumHeight = pixels(56)
+            elevation = pixels(4).toFloat()
+            setPadding(pixels(4), pixels(6), pixels(4), pixels(6))
+            background = GradientDrawable().apply {
+                color = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
+                cornerRadius = pixels(12).toFloat()
+                setStroke(pixels(1), 0x26000000)
+            }
+            addView(actionButton(R.drawable.ic_callout_bookmark, "Save place", onSave))
+            addView(textColumn)
+            addView(actionButton(R.drawable.ic_callout_close, "Close place", onDismiss))
+        }
+
+        return bubble
+    }
+
+    private fun removeSearchMarker() {
+        searchMarker?.let { marker -> map?.removeMarker(marker) }
+        searchMarker = null
+        selectedSearchPlace = null
+        selectedSearchPlaceId = null
     }
 
     fun fitRoute(coordinates: List<GeoCoordinate>, version: Int) {

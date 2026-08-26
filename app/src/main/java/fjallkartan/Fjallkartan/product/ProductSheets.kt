@@ -56,8 +56,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import fjallkartan.fjallkartan.BuildConfig
+import fjallkartan.fjallkartan.R
 import kotlinx.coroutines.launch
 import org.maplibre.android.offline.OfflineManager
 
@@ -224,6 +226,8 @@ fun ToolsSheet(
     onChooseOfflineArea: () -> Unit,
     onOfflineMaps: () -> Unit,
     onLegend: () -> Unit,
+    slopeVisible: Boolean,
+    onToggleSlope: () -> Unit,
     onAbout: () -> Unit,
     onDismiss: () -> Unit,
 ) {
@@ -235,9 +239,31 @@ fun ToolsSheet(
             ToolRow(Icons.Default.DownloadForOffline, localText("Download current area"), onChooseOfflineArea)
             ToolRow(Icons.Default.Folder, localText("Offline maps"), onOfflineMaps)
             ToolRow(Icons.Default.Layers, localText("Legend"), onLegend)
+            DrawableToolRow(
+                drawable = R.drawable.ic_slope,
+                title = localText("Slope"),
+                tint = if (slopeVisible) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
+                onClick = onToggleSlope,
+            )
             ToolRow(Icons.Default.Info, localText("About"), onAbout)
         }
     }
+}
+
+@Composable
+private fun DrawableToolRow(
+    drawable: Int,
+    title: String,
+    tint: Color,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        leadingContent = {
+            Icon(painterResource(drawable), contentDescription = null, tint = tint)
+        },
+        headlineContent = { Text(title) },
+        modifier = Modifier.combinedClickable(onClick = onClick),
+    )
 }
 
 @Composable
