@@ -1,7 +1,9 @@
 package fjallkartan.fjallkartan
 
+import android.app.Application
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import fjallkartan.fjallkartan.map.MapViewModel
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.saved.FeaturedRoutes
 import fjallkartan.fjallkartan.saved.JsonFileStore
@@ -28,6 +30,18 @@ class SearchAndSavedInstrumentedTest {
     fun foldsDiacriticsLikeTheIosSearchIndex() {
         val results = PlaceSearch(context).search("stalo")
         assertTrue(results.any { it.name == "Stáloluokta" })
+    }
+
+    @Test
+    fun retainsSearchQueryAfterSelectingResult() {
+        val viewModel = MapViewModel(context.applicationContext as Application)
+
+        viewModel.setSearchQuery("Abisko")
+        viewModel.selectPlace(
+            PlaceSearch(context).search("Abisko").first(),
+        )
+
+        assertEquals("Abisko", viewModel.searchQuery.value)
     }
 
     @Test

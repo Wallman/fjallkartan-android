@@ -72,6 +72,8 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
 
     val featuredRoutes: List<FeaturedRoute> = FeaturedRoutes.load(application)
 
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
     private val _searchResults = MutableStateFlow<List<PlaceResult>>(emptyList())
     val searchResults = _searchResults.asStateFlow()
     private val _selectedPlace = MutableStateFlow(SearchSelection())
@@ -172,6 +174,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun setSearchQuery(query: String) {
+        _searchQuery.value = query
         searchJob?.cancel()
         if (query.isBlank()) {
             _searchResults.value = emptyList()

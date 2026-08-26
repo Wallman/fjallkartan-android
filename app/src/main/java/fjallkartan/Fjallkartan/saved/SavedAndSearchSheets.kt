@@ -42,17 +42,16 @@ import fjallkartan.fjallkartan.search.PlaceResult
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)
 fun PlaceSearchSheet(
+    query: String,
     results: List<PlaceResult>,
     onQueryChanged: (String) -> Unit,
     onSelect: (PlaceResult) -> Unit,
     onSave: (PlaceResult) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var query by remember { mutableStateOf("") }
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     val focusRequester = remember { FocusRequester() }
     val keyboard = LocalSoftwareKeyboardController.current
-    LaunchedEffect(query) { onQueryChanged(query) }
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
         keyboard?.show()
@@ -65,7 +64,7 @@ fun PlaceSearchSheet(
         Column(Modifier.fillMaxWidth().fillMaxHeight(0.72f).padding(bottom = 24.dp)) {
             TextField(
                 value = query,
-                onValueChange = { query = it },
+                onValueChange = onQueryChanged,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)

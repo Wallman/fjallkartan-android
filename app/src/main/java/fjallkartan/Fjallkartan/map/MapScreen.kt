@@ -131,6 +131,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val elevation by viewModel.elevation.collectAsStateWithLifecycle()
     val savedRoutes by viewModel.savedRoutes.collectAsStateWithLifecycle()
     val savedPins by viewModel.savedPins.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
     val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val searchSelection by viewModel.selectedPlace.collectAsStateWithLifecycle()
     val routeFitVersion by viewModel.routeFitVersion.collectAsStateWithLifecycle()
@@ -464,6 +465,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     }
     if (showSearch) {
         PlaceSearchSheet(
+            query = searchQuery,
             results = searchResults,
             onQueryChanged = viewModel::setSearchQuery,
             onSelect = {
