@@ -19,6 +19,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -65,8 +67,31 @@ fun PlaceSearchSheet(
                         headlineContent = { Text(place.name) },
                         supportingContent = {
                             Column {
-                                if (place.matchedAlias != null) Text(place.matchedAlias)
-                                if (place.subtitle.isNotBlank()) Text(place.subtitle)
+                                Row {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.surfaceVariant,
+                                        shape = MaterialTheme.shapes.extraSmall,
+                                    ) {
+                                        Text(
+                                            place.countryCode,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            modifier = Modifier.padding(horizontal = 5.dp, vertical = 1.dp),
+                                        )
+                                    }
+                                    if (place.subtitle.isNotBlank()) {
+                                        Text(
+                                            place.subtitle,
+                                            modifier = Modifier.padding(start = 6.dp),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                }
+                                if (place.matchedAlias != null) {
+                                    Text(
+                                        "also ${place.matchedAlias}",
+                                        style = MaterialTheme.typography.labelSmall,
+                                    )
+                                }
                             }
                         },
                         trailingContent = {

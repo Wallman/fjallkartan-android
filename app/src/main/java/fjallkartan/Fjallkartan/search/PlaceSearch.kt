@@ -15,6 +15,9 @@ data class PlaceResult(
     val country: Int,
     val coordinate: GeoCoordinate,
 ) {
+    val countryCode: String
+        get() = if (country == 1) "NO" else "SE"
+
     val subtitle: String
         get() = listOfNotNull(municipality, region).distinct().joinToString(", ")
 }
