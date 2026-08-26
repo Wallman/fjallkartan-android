@@ -16,6 +16,16 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkVertically
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
@@ -27,17 +37,23 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.Inbox
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.ui.res.painterResource
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Button
@@ -62,6 +78,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -90,7 +107,6 @@ import fjallkartan.fjallkartan.product.GuideTips
 import fjallkartan.fjallkartan.product.LegendSheet
 import fjallkartan.fjallkartan.product.OnboardingSheet
 import fjallkartan.fjallkartan.product.ReviewPrompter
-import fjallkartan.fjallkartan.product.ToolsSheet
 import fjallkartan.fjallkartan.R
 import com.google.android.play.core.review.ReviewManagerFactory
 import kotlinx.coroutines.delay
@@ -291,11 +307,16 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             },
         )
 
+        if (isPickingOffline) {
+            OfflinePreviewOverlay(Modifier.fillMaxSize())
+        }
+
         Column(
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 110.dp, end = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+                .padding(top = 110.dp, end = 4.dp)
+                .width(64.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             MapControlButton(onClick = { showSearch = true }) {
                 Icon(Icons.Default.Search, contentDescription = "Search places")
@@ -304,7 +325,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 Icon(
                     Icons.Default.MyLocation,
                     contentDescription = "Track my location",
-                    tint = if (trackingEnabled) MaterialTheme.colorScheme.primary else Color.Black,
+                    tint = if (trackingEnabled) Color(0xFFF28C28) else Color.Black,
                 )
             }
             MapControlButton(onClick = viewModel::toggleMeasuring) {
@@ -314,24 +335,141 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     tint = if (measurement.isMeasuring) Color(0xFFF28C28) else Color.Black,
                 )
             }
-            MapControlButton(onClick = { showSavedRoutes = true }) {
-                Icon(Icons.Default.Bookmarks, contentDescription = "Saved routes")
-            }
-            MapControlButton(onClick = { showTools = true }) {
-                Icon(Icons.Default.MoreVert, contentDescription = "More map tools")
-            }
-            if (measurement.isMeasuring) {
-                MapControlButton(
-                    onClick = viewModel::undoMeasurement,
-                    enabled = measurement.canUndo,
-                ) {
-                    Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo last stroke")
+            val measurementButtons = buildList<@Composable () -> Unit> {
+                add {
+                    MapControlButton(
+                        onClick = viewModel::undoMeasurement,
+                        enabled = measurement.canUndo,
+                        label = "Undo",
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Undo,
+                            contentDescription = "Undo last stroke",
+                            tint = if (measurement.canUndo) Color(0xFF007AFF) else Color.Gray,
+                        )
+                    }
                 }
-                MapControlButton(
-                    onClick = viewModel::clearMeasurement,
-                    enabled = !measurement.isEmpty,
+                add {
+                    MapControlButton(
+                        onClick = viewModel::clearMeasurement,
+                        enabled = !measurement.isEmpty,
+                        label = "Clear",
+                    ) {
+                        Icon(
+                            Icons.Default.Delete,
+                            contentDescription = "Clear measurement",
+                            tint = if (!measurement.isEmpty) Color(0xFF007AFF) else Color.Gray,
+                        )
+                    }
+                }
+                add {
+                    MapControlButton(
+                        onClick = { showSaveRoute = true },
+                        enabled = !measurement.isEmpty,
+                        label = "Save",
+                    ) {
+                        Icon(
+                            Icons.Default.BookmarkBorder,
+                            contentDescription = "Save current route",
+                            tint = if (!measurement.isEmpty) Color(0xFF007AFF) else Color.Gray,
+                        )
+                    }
+                }
+            }
+            measurementButtons.forEachIndexed { index, button ->
+                AnimatedVisibility(
+                    visible = measurement.isMeasuring,
+                    enter = fadeIn(tween(durationMillis = 180, delayMillis = index * 30)) +
+                        expandVertically(tween(durationMillis = 180, delayMillis = index * 30), expandFrom = Alignment.Top),
+                    exit = fadeOut(tween(durationMillis = 120)) + shrinkVertically(tween(durationMillis = 120), shrinkTowards = Alignment.Top),
                 ) {
-                    Icon(Icons.Default.Delete, contentDescription = "Clear measurement")
+                    button()
+                }
+            }
+            MapControlButton(onClick = { showSavedRoutes = true }) {
+                Icon(Icons.Default.Bookmark, contentDescription = "Saved routes")
+            }
+            MapControlButton(onClick = { showTools = !showTools }) {
+                AnimatedContent(
+                    targetState = showTools,
+                    transitionSpec = {
+                        (fadeIn(tween(150)) + scaleIn(initialScale = 0.6f, animationSpec = tween(150)))
+                            .togetherWith(fadeOut(tween(100)) + scaleOut(targetScale = 0.6f, animationSpec = tween(100)))
+                    },
+                    label = "moreToolsIcon",
+                ) { expanded ->
+                    Icon(
+                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.MoreHoriz,
+                        contentDescription = "More map tools",
+                    )
+                }
+            }
+            data class ToolButtonSpec(val visible: Boolean, val content: @Composable () -> Unit)
+            val extraToolButtons = buildList {
+                add(
+                    ToolButtonSpec(true) {
+                        MapControlButton(
+                            onClick = {
+                                if (isPickingOffline) {
+                                    isPickingOffline = false
+                                } else {
+                                    isPickingOffline = true
+                                    if (guideTips.take("offline")) {
+                                        guideTip = "Move and zoom until the dashed box covers your area."
+                                    }
+                                    if (Build.VERSION.SDK_INT >= 33) {
+                                        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                                    }
+                                }
+                            },
+                            label = "Download",
+                        ) {
+                            Icon(
+                                Icons.Outlined.Download,
+                                contentDescription = "Download current area",
+                                tint = if (isPickingOffline) Color(0xFFF28C28) else Color.Black,
+                            )
+                        }
+                    },
+                )
+                add(
+                    ToolButtonSpec(isPickingOffline) {
+                        MapControlButton(onClick = { showOfflineRegions = true }, label = "Regions") {
+                            Icon(
+                                Icons.Default.Inbox,
+                                contentDescription = "Offline maps",
+                                tint = Color(0xFF007AFF),
+                            )
+                        }
+                    },
+                )
+                add(
+                    ToolButtonSpec(true) {
+                        MapControlButton(onClick = { showLegend = true }, label = "Symbols") {
+                            Icon(Icons.Default.ListAlt, contentDescription = "Legend")
+                        }
+                    },
+                )
+                add(
+                    ToolButtonSpec(true) {
+                        MapControlButton(onClick = viewModel::toggleSlope, label = "Slope") {
+                            Icon(
+                                painterResource(R.drawable.ic_slope),
+                                contentDescription = "Slope",
+                                tint = if (slopeVisible) Color(0xFFF28C28) else Color.Black,
+                            )
+                        }
+                    },
+                )
+            }
+            extraToolButtons.forEachIndexed { index, spec ->
+                AnimatedVisibility(
+                    visible = showTools && spec.visible,
+                    enter = fadeIn(tween(durationMillis = 180, delayMillis = index * 30)) +
+                        expandVertically(tween(durationMillis = 180, delayMillis = index * 30), expandFrom = Alignment.Top),
+                    exit = fadeOut(tween(durationMillis = 120)) + shrinkVertically(tween(durationMillis = 120), shrinkTowards = Alignment.Top),
+                ) {
+                    spec.content()
                 }
             }
         }
@@ -370,7 +508,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             metersPerPixel = metersPerPixel,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 8.dp, bottom = 38.dp),
+                .padding(start = 8.dp, bottom = 28.dp),
         )
         if (showZoom) {
             Text(
@@ -388,22 +526,21 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             )
         }
 
-        Row(
+        IconButton(
+            onClick = { showAbout = true },
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 14.dp)
-                .background(Color.White.copy(alpha = 0.82f), CircleShape)
-                .padding(horizontal = 10.dp, vertical = 4.dp),
+                .align(Alignment.BottomEnd)
+                .padding(end = 6.dp, bottom = 15.dp)
+                .size(44.dp),
         ) {
-            Text(
-                "Kartverket • Lantmäteriet • NVE",
-                style = MaterialTheme.typography.labelSmall,
-                color = Color.Black,
+            Icon(
+                Icons.Outlined.Info,
+                contentDescription = "About",
+                tint = Color.Gray,
             )
         }
 
         if (isPickingOffline) {
-            OfflinePreviewOverlay(Modifier.fillMaxSize())
             Button(
                 onClick = { pendingOfflineBounds = mapState.currentOfflineBounds() },
                 modifier = Modifier
@@ -417,27 +554,6 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
 
     if (showElevation && elevation.hasData) {
         ElevationProfileSheet(state = elevation, onDismiss = { showElevation = false })
-    }
-    if (showTools) {
-        ToolsSheet(
-            canSaveRoute = !measurement.isEmpty,
-            onSavedRoutes = { showTools = false; showSavedRoutes = true },
-            onSaveRoute = { showTools = false; showSaveRoute = true },
-            onChooseOfflineArea = {
-                showTools = false
-                isPickingOffline = true
-                if (guideTips.take("offline")) guideTip = "Move and zoom until the dashed box covers your area."
-                if (Build.VERSION.SDK_INT >= 33) {
-                    notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
-                }
-            },
-            onOfflineMaps = { showTools = false; showOfflineRegions = true },
-            onLegend = { showTools = false; showLegend = true },
-            slopeVisible = slopeVisible,
-            onToggleSlope = viewModel::toggleSlope,
-            onAbout = { showTools = false; showAbout = true },
-            onDismiss = { showTools = false },
-        )
     }
     if (showLegend) LegendSheet { showLegend = false }
     if (showGuide) {
@@ -539,10 +655,17 @@ private fun OfflinePreviewOverlay(modifier: Modifier = Modifier) {
     Canvas(modifier) {
         val insetX = size.width * 0.1f
         val insetY = size.height * 0.1f
+        val topLeft = androidx.compose.ui.geometry.Offset(insetX, insetY)
+        val rectSize = androidx.compose.ui.geometry.Size(size.width - insetX * 2, size.height - insetY * 2)
         drawRect(
-            color = Color(0xFFF28C28),
-            topLeft = androidx.compose.ui.geometry.Offset(insetX, insetY),
-            size = androidx.compose.ui.geometry.Size(size.width - insetX * 2, size.height - insetY * 2),
+            color = Color(0xFF007AFF).copy(alpha = 0.1f),
+            topLeft = topLeft,
+            size = rectSize,
+        )
+        drawRect(
+            color = Color(0xFF007AFF),
+            topLeft = topLeft,
+            size = rectSize,
             style = Stroke(
                 width = 3.dp.toPx(),
                 pathEffect = PathEffect.dashPathEffect(floatArrayOf(12.dp.toPx(), 8.dp.toPx())),
@@ -555,15 +678,33 @@ private fun OfflinePreviewOverlay(modifier: Modifier = Modifier) {
 private fun MapControlButton(
     onClick: () -> Unit,
     enabled: Boolean = true,
+    label: String? = null,
     content: @Composable () -> Unit,
 ) {
-    Surface(shape = CircleShape, shadowElevation = 4.dp, color = Color.White) {
-        IconButton(
-            onClick = onClick,
-            enabled = enabled,
-            modifier = Modifier.size(48.dp),
-            content = content,
-        )
+    Column(
+        modifier = Modifier.padding(bottom = if (label != null) 6.dp else 10.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        Surface(shape = CircleShape, shadowElevation = 4.dp, color = Color.White) {
+            IconButton(
+                onClick = onClick,
+                enabled = enabled,
+                modifier = Modifier.size(48.dp),
+                content = content,
+            )
+        }
+        if (label != null) {
+            Text(
+                text = label,
+                color = Color.Black,
+                style = MaterialTheme.typography.labelSmall,
+                maxLines = 1,
+                modifier = Modifier
+                    .padding(top = 1.dp)
+                    .width(64.dp),
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
@@ -574,7 +715,6 @@ private fun ScaleBar(metersPerPixel: Double, modifier: Modifier = Modifier) {
     Column(
         modifier = modifier.padding(horizontal = 8.dp, vertical = 6.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(3.dp),
     ) {
         Text(
             text = scale.label,

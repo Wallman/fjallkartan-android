@@ -26,9 +26,6 @@ import androidx.compose.material.icons.filled.DownloadForOffline
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Layers
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.Folder
-import androidx.compose.material.icons.filled.Save
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material3.AlertDialog
@@ -56,10 +53,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import fjallkartan.fjallkartan.BuildConfig
-import fjallkartan.fjallkartan.R
 import kotlinx.coroutines.launch
 import org.maplibre.android.offline.OfflineManager
 import androidx.core.content.edit
@@ -217,63 +212,6 @@ fun GuideTipBadge(text: String, modifier: Modifier = Modifier) {
             Text(text, modifier = Modifier.padding(start = 8.dp), color = Color.Black)
         }
     }
-}
-
-@Composable
-fun ToolsSheet(
-    canSaveRoute: Boolean,
-    onSavedRoutes: () -> Unit,
-    onSaveRoute: () -> Unit,
-    onChooseOfflineArea: () -> Unit,
-    onOfflineMaps: () -> Unit,
-    onLegend: () -> Unit,
-    slopeVisible: Boolean,
-    onToggleSlope: () -> Unit,
-    onAbout: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        Column(Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
-            Text(localText("Map tools"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
-            ToolRow(Icons.Default.Bookmarks, localText("Saved routes"), onSavedRoutes)
-            if (canSaveRoute) ToolRow(Icons.Default.Save, localText("Save current route"), onSaveRoute)
-            ToolRow(Icons.Default.DownloadForOffline, localText("Download current area"), onChooseOfflineArea)
-            ToolRow(Icons.Default.Folder, localText("Offline maps"), onOfflineMaps)
-            ToolRow(Icons.Default.Layers, localText("Legend"), onLegend)
-            DrawableToolRow(
-                drawable = R.drawable.ic_slope,
-                title = localText("Slope"),
-                tint = if (slopeVisible) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
-                onClick = onToggleSlope,
-            )
-            ToolRow(Icons.Default.Info, localText("About"), onAbout)
-        }
-    }
-}
-
-@Composable
-private fun DrawableToolRow(
-    drawable: Int,
-    title: String,
-    tint: Color,
-    onClick: () -> Unit,
-) {
-    ListItem(
-        leadingContent = {
-            Icon(painterResource(drawable), contentDescription = null, tint = tint)
-        },
-        headlineContent = { Text(title) },
-        modifier = Modifier.combinedClickable(onClick = onClick),
-    )
-}
-
-@Composable
-private fun ToolRow(icon: ImageVector, title: String, onClick: () -> Unit) {
-    ListItem(
-        leadingContent = { Icon(icon, contentDescription = null) },
-        headlineContent = { Text(title) },
-        modifier = Modifier.combinedClickable(onClick = onClick),
-    )
 }
 
 class GuideTips(context: Context) {
