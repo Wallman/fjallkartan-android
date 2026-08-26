@@ -29,11 +29,11 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Bookmarks
-import androidx.compose.material.icons.filled.Explore
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
@@ -58,10 +58,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
-import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
@@ -92,7 +94,6 @@ import fjallkartan.fjallkartan.product.ToolsSheet
 import fjallkartan.fjallkartan.R
 import com.google.android.play.core.review.ReviewManagerFactory
 import kotlinx.coroutines.delay
-import kotlin.math.cos
 import org.maplibre.android.camera.CameraPosition
 import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.annotations.Marker
@@ -138,9 +139,8 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val offlineRegions by viewModel.offlineRegions.collectAsStateWithLifecycle()
     val offlineError by viewModel.offlineError.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var latitude by remember { mutableDoubleStateOf(67.0) }
     var zoom by remember { mutableDoubleStateOf(3.4) }
-    var bearing by remember { mutableDoubleStateOf(0.0) }
+    var metersPerPixel by remember { mutableDoubleStateOf(0.0) }
     var showElevation by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
     var showSavedRoutes by remember { mutableStateOf(false) }
@@ -278,10 +278,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             onPinSelected = { pinId -> selectedPin = savedPins.firstOrNull { it.id == pinId } },
             onSaveSearchPlace = viewModel::savePlace,
             onDismissSearchPlace = { viewModel.selectPlace(null) },
-            onCameraChanged = { camera ->
-                latitude = camera.target?.latitude ?: latitude
+            onCameraChanged = { camera, updatedMetersPerPixel ->
                 zoom = camera.zoom
-                bearing = camera.bearing
+                metersPerPixel = updatedMetersPerPixel
             },
         )
 
@@ -291,17 +290,6 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 .padding(top = 56.dp, end = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Box(Modifier.size(48.dp)) {
-                if (kotlin.math.abs(bearing) > 0.5) {
-                    MapControlButton(onClick = mapState::resetBearing) {
-                        Icon(
-                            Icons.Default.Explore,
-                            contentDescription = "Reset compass to north",
-                            modifier = Modifier.rotate(-bearing.toFloat()),
-                        )
-                    }
-                }
-            }
             MapControlButton(onClick = { showSearch = true }) {
                 Icon(Icons.Default.Search, contentDescription = "Search places")
             }
@@ -372,11 +360,10 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         }
 
         ScaleBar(
-            latitude = latitude,
-            zoom = zoom,
+            metersPerPixel = metersPerPixel,
             modifier = Modifier
                 .align(Alignment.BottomStart)
-                .padding(start = 12.dp, bottom = 44.dp),
+                .padding(start = 8.dp, bottom = 38.dp),
         )
         if (showZoom) {
             Text(
@@ -574,27 +561,51 @@ private fun MapControlButton(
 }
 
 @Composable
-private fun ScaleBar(latitude: Double, zoom: Double, modifier: Modifier = Modifier) {
-    val metersPerPixel = 156543.03392 * cos(Math.toRadians(latitude)) / (1 shl zoom.toInt())
-    val targetPixels = 90.0
-    val rawMeters = metersPerPixel * targetPixels
-    val magnitude = Math.pow(10.0, kotlin.math.floor(kotlin.math.log10(rawMeters)))
-    val normalized = rawMeters / magnitude
-    val nice = when {
-        normalized >= 5 -> 5.0
-        normalized >= 2 -> 2.0
-        else -> 1.0
-    } * magnitude
-    val label = if (nice >= 1_000) "${(nice / 1_000).toInt()} km" else "${nice.toInt()} m"
+private fun ScaleBar(metersPerPixel: Double, modifier: Modifier = Modifier) {
+    val metersPerDp = metersPerPixel * LocalDensity.current.density
+    val scale = calculateScaleBar(metersPerDp)
+    Column(
+        modifier = modifier.padding(horizontal = 8.dp, vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(3.dp),
+    ) {
+        Text(
+            text = scale.label,
+            color = Color.Black,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.SemiBold,
+        )
+        Canvas(Modifier.width(scale.widthDp.dp).height(8.dp)) {
+            val strokeWidth = 2.dp.toPx()
+            val y = size.height / 2
+            drawLine(Color.Black, start = androidx.compose.ui.geometry.Offset(0f, y),
+                end = androidx.compose.ui.geometry.Offset(size.width, y), strokeWidth = strokeWidth)
+            drawLine(Color.Black, start = androidx.compose.ui.geometry.Offset(strokeWidth / 2, 0f),
+                end = androidx.compose.ui.geometry.Offset(strokeWidth / 2, size.height),
+                strokeWidth = strokeWidth)
+            drawLine(Color.Black, start = androidx.compose.ui.geometry.Offset(size.width - strokeWidth / 2, 0f),
+                end = androidx.compose.ui.geometry.Offset(size.width - strokeWidth / 2, size.height),
+                strokeWidth = strokeWidth)
+        }
+    }
+}
 
-    Text(
-        text = label,
-        modifier = modifier
-            .background(Color.White.copy(alpha = 0.85f), CircleShape)
-            .padding(horizontal = 10.dp, vertical = 5.dp),
-        color = Color.Black,
-        style = MaterialTheme.typography.labelMedium,
+internal data class ScaleBarScale(val widthDp: Float, val label: String)
+
+internal fun calculateScaleBar(metersPerDp: Double): ScaleBarScale {
+    val niceDistances = doubleArrayOf(
+        20.0, 50.0, 100.0, 200.0, 500.0, 1_000.0, 2_000.0, 5_000.0,
+        10_000.0, 20_000.0, 50_000.0, 100_000.0, 200_000.0, 500_000.0,
     )
+    if (metersPerDp <= 0.0) return ScaleBarScale(60f, "")
+    val maxMeters = metersPerDp * 120.0
+    val distance = niceDistances.lastOrNull { it <= maxMeters } ?: niceDistances.first()
+    val label = if (distance >= 1_000) {
+        "${(distance / 1_000).toInt()} km"
+    } else {
+        "${distance.toInt()} m"
+    }
+    return ScaleBarScale((distance / metersPerDp).toFloat(), label)
 }
 
 @Composable
@@ -612,7 +623,7 @@ private fun MapLibreView(
     onPinSelected: (java.util.UUID) -> Unit,
     onSaveSearchPlace: (PlaceResult) -> Unit,
     onDismissSearchPlace: () -> Unit,
-    onCameraChanged: (CameraPosition) -> Unit,
+    onCameraChanged: (CameraPosition, Double) -> Unit,
 ) {
     val lifecycle = LocalLifecycleOwner.current.lifecycle
     val context = LocalContext.current
@@ -682,7 +693,7 @@ private class MapHolder {
 
     fun createContainer(
         context: android.content.Context,
-        onCameraChanged: (CameraPosition) -> Unit,
+        onCameraChanged: (CameraPosition, Double) -> Unit,
         onStrokeFinished: (List<GeoCoordinate>) -> Unit,
         onPreviewChanged: (Double?) -> Unit,
         onDropPin: (GeoCoordinate) -> Unit,
@@ -702,10 +713,14 @@ private class MapHolder {
         mapView.getMapAsync { readyMap ->
             map = readyMap
             container.bindMap(readyMap)
+            val density = context.resources.displayMetrics.density
             readyMap.uiSettings.apply {
                 isLogoEnabled = false
                 isAttributionEnabled = false
-                isCompassEnabled = false
+                isCompassEnabled = true
+                setCompassGravity(Gravity.TOP or Gravity.END)
+                setCompassMargins(0, (56 * density).toInt(), (12 * density).toInt(), 0)
+                setCompassFadeFacingNorth(false)
                 isTiltGesturesEnabled = false
             }
             readyMap.setInfoWindowAdapter { marker ->
@@ -737,8 +752,14 @@ private class MapHolder {
                 .target(LatLng(67.0, 16.0))
                 .zoom(3.4)
                 .build()
+            fun reportCameraPosition() {
+                val camera = readyMap.cameraPosition
+                val latitude = camera.target?.latitude ?: 0.0
+                onCameraChanged(camera, readyMap.projection.getMetersPerPixelAtLatitude(latitude))
+            }
+            reportCameraPosition()
             readyMap.addOnCameraMoveListener {
-                onCameraChanged(readyMap.cameraPosition)
+                reportCameraPosition()
                 updateDistanceMarkers()
                 container.invalidateMarkers()
             }
@@ -779,15 +800,6 @@ private class MapHolder {
         pinMarkers = emptyMap()
         searchMarker = null
         selectedSearchPlace = null
-    }
-
-    fun resetBearing() {
-        val readyMap = map ?: return
-        readyMap.animateCamera(
-            CameraUpdateFactory.newCameraPosition(
-                CameraPosition.Builder(readyMap.cameraPosition).bearing(0.0).build(),
-            ),
-        )
     }
 
     fun setSlopeVisible(visible: Boolean) {
