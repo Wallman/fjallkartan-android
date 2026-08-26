@@ -93,7 +93,10 @@ data class SavedPin(
 ) {
     val displayName: String get() = name.orEmpty()
 
-    fun renamed(name: String): SavedPin = copy(name = name.trim().ifBlank { null })
+    fun updated(name: String, notes: String): SavedPin = copy(
+        name = name.trim().ifBlank { null },
+        notes = notes.trim().ifBlank { null },
+    )
 
     fun toJson(): JSONObject = JSONObject()
         .put("id", id.toString())

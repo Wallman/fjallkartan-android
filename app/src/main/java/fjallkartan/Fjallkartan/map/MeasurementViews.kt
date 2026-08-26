@@ -16,7 +16,6 @@ import fjallkartan.fjallkartan.measurement.DistanceMeasurement
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.measurement.LineSimplifier
 import fjallkartan.fjallkartan.measurement.ScreenPoint
-import fjallkartan.fjallkartan.saved.SavedPin
 import kotlin.math.hypot
 import kotlin.math.ln
 import org.maplibre.android.camera.CameraUpdateFactory
@@ -28,20 +27,17 @@ import org.maplibre.android.maps.MapView
 internal class MapContainerView(
     context: Context,
     val mapView: MapView,
-    private val pinOverlay: PinOverlay,
     private val markerOverlay: DistanceMarkerOverlay,
     val captureView: MeasureCaptureView,
 ) : FrameLayout(context) {
     init {
         addView(mapView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        addView(pinOverlay, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(markerOverlay, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(captureView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     fun bindMap(map: MapLibreMap) {
         markerOverlay.map = map
-        pinOverlay.map = map
         captureView.map = map
     }
 
@@ -52,45 +48,6 @@ internal class MapContainerView(
 
     fun invalidateMarkers() {
         markerOverlay.invalidate()
-        pinOverlay.invalidate()
-    }
-
-    fun updatePins(pins: List<SavedPin>) {
-        pinOverlay.pins = pins
-        pinOverlay.invalidate()
-    }
-}
-
-internal class PinOverlay(context: Context) : View(context) {
-    var map: MapLibreMap? = null
-    var pins: List<SavedPin> = emptyList()
-
-    private val density = resources.displayMetrics.density
-    private val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply { style = Paint.Style.FILL }
-    private val stroke = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        style = Paint.Style.STROKE
-        color = Color.WHITE
-        strokeWidth = 3 * density
-    }
-    override fun onDraw(canvas: Canvas) {
-        val projection = map?.projection ?: return
-        pins.forEach { pin ->
-            val point = projection.toScreenLocation(LatLng(pin.coordinate.latitude, pin.coordinate.longitude))
-            drawPin(canvas, point, Color.rgb(242, 140, 40), 10 * density)
-        }
-    }
-
-    private fun drawPin(canvas: Canvas, point: PointF, color: Int, radius: Float) {
-        fill.color = color
-        canvas.drawCircle(point.x, point.y - radius, radius, fill)
-        canvas.drawCircle(point.x, point.y - radius, radius, stroke)
-        val path = Path().apply {
-            moveTo(point.x - radius * 0.45f, point.y - radius * 0.25f)
-            lineTo(point.x, point.y + radius * 0.8f)
-            lineTo(point.x + radius * 0.45f, point.y - radius * 0.25f)
-            close()
-        }
-        canvas.drawPath(path, fill)
     }
 }
 

@@ -212,39 +212,55 @@ fun NameDialog(
 @Composable
 fun PinDetailDialog(
     pin: SavedPin,
-    onRename: (String) -> Unit,
+    onSave: (String, String) -> Unit,
     onDelete: () -> Unit,
     onDismiss: () -> Unit,
 ) {
-    var renaming by remember { mutableStateOf(false) }
-    if (renaming) {
-        NameDialog(
-            title = "Rename pin",
-            initialValue = pin.name.orEmpty(),
-            onConfirm = {
-                onRename(it)
-                renaming = false
+    var name by remember(pin.id) { mutableStateOf(pin.name.orEmpty()) }
+    var notes by remember(pin.id) { mutableStateOf(pin.notes.orEmpty()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(pin.displayName.ifBlank { "Saved pin" }) },
+        text = {
+            Column {
+                TextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                TextField(
+                    value = notes,
+                    onValueChange = { notes = it },
+                    label = { Text("Notes") },
+                    minLines = 3,
+                    maxLines = 6,
+                    modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+                )
+                Text(
+                    "${pin.coordinate.latitude}, ${pin.coordinate.longitude}",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 12.dp),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = {
+                onSave(name, notes)
                 onDismiss()
-            },
-            onDismiss = { renaming = false },
-        )
-    } else {
-        AlertDialog(
-            onDismissRequest = onDismiss,
-            title = { Text(pin.displayName.ifBlank { "Saved pin" }) },
-            text = { Text("${pin.coordinate.latitude}, ${pin.coordinate.longitude}") },
-            confirmButton = {
-                TextButton(onClick = { renaming = true }) { Text("Rename") }
-            },
-            dismissButton = {
-                Row {
-                    TextButton(onClick = {
-                        onDelete()
-                        onDismiss()
-                    }) { Text("Delete") }
-                    TextButton(onClick = onDismiss) { Text("Close") }
+            }) { Text("Save") }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = {
+                    onDelete()
+                    onDismiss()
+                }) {
+                    Text("Delete", color = MaterialTheme.colorScheme.error)
                 }
-            },
-        )
-    }
+                TextButton(onClick = onDismiss) { Text("Cancel") }
+            }
+        },
+    )
 }

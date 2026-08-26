@@ -199,8 +199,8 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
         savePin(SavedPin(coordinate = coordinate))
     }
 
-    fun renamePin(pin: SavedPin, name: String) {
-        savePin(pin.renamed(name))
+    fun updatePin(pin: SavedPin, name: String, notes: String) {
+        savePin(pin.updated(name, notes))
     }
 
     fun deletePin(pin: SavedPin) {

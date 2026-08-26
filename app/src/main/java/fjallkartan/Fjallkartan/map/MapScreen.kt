@@ -502,7 +502,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     selectedPin?.let { pin ->
         PinDetailDialog(
             pin = pin,
-            onRename = { viewModel.renamePin(pin, it) },
+            onSave = { name, notes -> viewModel.updatePin(pin, name, notes) },
             onDelete = { viewModel.deletePin(pin) },
             onDismiss = { selectedPin = null },
         )
@@ -673,6 +673,7 @@ private class MapHolder {
     private var routeCoordinates: List<GeoCoordinate> = emptyList()
     private var routeMeters: Double = 0.0
     private var pins: List<SavedPin> = emptyList()
+    private var pinMarkers: Map<java.util.UUID, Marker> = emptyMap()
     private var searchMarker: Marker? = null
     private var selectedSearchPlace: PlaceResult? = null
     private var shownSearchPlaceToken = -1
@@ -690,13 +691,12 @@ private class MapHolder {
         onDismissSearchPlace: () -> Unit,
     ): MapContainerView {
         val mapView = MapView(context).also { it.onCreate(Bundle()) }
-        val pinOverlay = PinOverlay(context)
         val markerOverlay = DistanceMarkerOverlay(context)
         val captureView = MeasureCaptureView(context).apply {
             this.onStrokeFinished = onStrokeFinished
             this.onPreviewChanged = onPreviewChanged
         }
-        val container = MapContainerView(context, mapView, pinOverlay, markerOverlay, captureView)
+        val container = MapContainerView(context, mapView, markerOverlay, captureView)
         this.mapView = mapView
         this.container = container
         mapView.getMapAsync { readyMap ->
@@ -742,22 +742,22 @@ private class MapHolder {
                 updateDistanceMarkers()
                 container.invalidateMarkers()
             }
+            readyMap.setOnMarkerClickListener { marker ->
+                val pin = pinMarkers.entries
+                    .firstOrNull { it.value.id == marker.id }
+                    ?.key
+                    ?.let { id -> pins.firstOrNull { it.id == id } }
+                if (pin != null) {
+                    onPinSelected(pin.id)
+                    true
+                } else {
+                    false
+                }
+            }
             readyMap.addOnMapLongClickListener { coordinate ->
                 if (measuring || offlinePreview) return@addOnMapLongClickListener false
                 onDropPin(GeoCoordinate(coordinate.latitude, coordinate.longitude))
                 true
-            }
-            readyMap.addOnMapClickListener { coordinate ->
-                val tapped = readyMap.projection.toScreenLocation(coordinate)
-                val hit = pins.firstOrNull { pin ->
-                    val point = readyMap.projection.toScreenLocation(
-                        LatLng(pin.coordinate.latitude, pin.coordinate.longitude),
-                    )
-                    kotlin.math.hypot(point.x - tapped.x, point.y - tapped.y) <=
-                        28 * container.resources.displayMetrics.density
-                }
-                if (hit != null) onPinSelected(hit.id)
-                hit != null
             }
             readyMap.setStyle(Style.Builder().fromJson(MapStyle.json())) {
                 addMeasurementLayers(it)
@@ -765,7 +765,7 @@ private class MapHolder {
                 setTracking(tracking)
                 setMeasuring(measuring)
                 renderRoute()
-                container.updatePins(pins)
+                syncPinMarkers()
             }
         }
         return container
@@ -776,6 +776,7 @@ private class MapHolder {
         mapView = null
         container = null
         pins = emptyList()
+        pinMarkers = emptyMap()
         searchMarker = null
         selectedSearchPlace = null
     }
@@ -910,9 +911,69 @@ private class MapHolder {
     }
 
     fun updatePins(pins: List<SavedPin>) {
-        if (this.pins == pins) return
+        if (this.pins == pins && pinMarkers.size == pins.size) return
         this.pins = pins
-        container?.updatePins(pins)
+        syncPinMarkers()
+    }
+
+    private fun syncPinMarkers() {
+        val readyMap = map ?: return
+        pinMarkers.values.forEach(readyMap::removeMarker)
+        val context = mapView?.context ?: return
+        val icon = savedPinMarkerIcon(context)
+        pinMarkers = pins.associate { pin ->
+            pin.id to readyMap.addMarker(
+                MarkerOptions()
+                    .position(LatLng(pin.coordinate.latitude, pin.coordinate.longitude))
+                    .icon(icon),
+            )
+        }
+    }
+
+    private fun savedPinMarkerIcon(
+        context: android.content.Context,
+    ): org.maplibre.android.annotations.Icon {
+        val density = context.resources.displayMetrics.density
+        fun pixels(dp: Float) = dp * density
+        val size = pixels(36f).toInt()
+        val center = pixels(18f)
+        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val canvas = android.graphics.Canvas(bitmap)
+
+        canvas.drawCircle(
+            center,
+            center,
+            pixels(14f),
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.rgb(88, 86, 214)
+                setShadowLayer(pixels(2f), 0f, pixels(1f), 0x40000000)
+            },
+        )
+        canvas.drawCircle(
+            center,
+            center,
+            pixels(13f),
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.WHITE
+                style = Paint.Style.STROKE
+                strokeWidth = pixels(2f)
+            },
+        )
+        canvas.drawPath(
+            android.graphics.Path().apply {
+                moveTo(pixels(13f), pixels(11f))
+                lineTo(pixels(23f), pixels(11f))
+                lineTo(pixels(23f), pixels(25f))
+                lineTo(center, pixels(22.8f))
+                lineTo(pixels(13f), pixels(25f))
+                close()
+            },
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.WHITE
+                style = Paint.Style.FILL
+            },
+        )
+        return IconFactory.getInstance(context).fromBitmap(bitmap)
     }
 
     fun showSearchPlace(place: PlaceResult?, token: Int) {

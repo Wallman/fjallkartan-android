@@ -28,7 +28,21 @@ class SavedModelsTest {
 
     @Test
     fun pinRoundTrips() {
-        val pin = SavedPin(coordinate = GeoCoordinate(68.0, 18.0), name = "Cabin")
+        val pin = SavedPin(
+            coordinate = GeoCoordinate(68.0, 18.0),
+            name = "Cabin",
+            notes = "Winter room is always open.",
+        )
         assertEquals(pin, SavedPin.fromJson(pin.toJson()))
+    }
+
+    @Test
+    fun pinUpdatesTrimOptionalText() {
+        val pin = SavedPin(coordinate = GeoCoordinate(68.0, 18.0))
+
+        assertEquals(
+            pin.copy(name = "Cabin", notes = null),
+            pin.updated("  Cabin  ", "  "),
+        )
     }
 }
