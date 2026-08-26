@@ -11,7 +11,6 @@ import android.graphics.PointF
 import android.view.MotionEvent
 import android.view.View
 import android.widget.FrameLayout
-import fjallkartan.fjallkartan.measurement.DistanceMarker
 import fjallkartan.fjallkartan.measurement.DistanceMeasurement
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.measurement.LineSimplifier
@@ -27,69 +26,15 @@ import org.maplibre.android.maps.MapView
 internal class MapContainerView(
     context: Context,
     val mapView: MapView,
-    private val markerOverlay: DistanceMarkerOverlay,
     val captureView: MeasureCaptureView,
 ) : FrameLayout(context) {
     init {
         addView(mapView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
-        addView(markerOverlay, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
         addView(captureView, LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT))
     }
 
     fun bindMap(map: MapLibreMap) {
-        markerOverlay.map = map
         captureView.map = map
-    }
-
-    fun updateMarkers(markers: List<DistanceMarker>) {
-        markerOverlay.markers = markers
-        markerOverlay.invalidate()
-    }
-
-    fun invalidateMarkers() {
-        markerOverlay.invalidate()
-    }
-}
-
-internal class DistanceMarkerOverlay(context: Context) : View(context) {
-    var map: MapLibreMap? = null
-    var markers: List<DistanceMarker> = emptyList()
-
-    private val density = resources.displayMetrics.density
-    private val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.WHITE
-        style = Paint.Style.FILL
-    }
-    private val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(11, 110, 79)
-        style = Paint.Style.STROKE
-        strokeWidth = 2 * density
-    }
-    private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.BLACK
-        textAlign = Paint.Align.CENTER
-        textSize = 11 * resources.displayMetrics.density * resources.configuration.fontScale
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
-    }
-
-    override fun onDraw(canvas: Canvas) {
-        super.onDraw(canvas)
-        val projection = map?.projection ?: return
-        for (marker in markers) {
-            val point = projection.toScreenLocation(
-                LatLng(marker.coordinate.latitude, marker.coordinate.longitude),
-            )
-            val label = DistanceMeasurement.markerLabel(marker.meters)
-            val width = textPaint.measureText(label) + 14 * density
-            val height = 24 * density
-            val left = point.x - width / 2
-            val top = point.y - height / 2
-            val radius = height / 2
-            canvas.drawRoundRect(left, top, left + width, top + height, radius, radius, circlePaint)
-            canvas.drawRoundRect(left, top, left + width, top + height, radius, radius, strokePaint)
-            val baseline = point.y - (textPaint.descent() + textPaint.ascent()) / 2
-            canvas.drawText(label, point.x, baseline, textPaint)
-        }
     }
 }
 

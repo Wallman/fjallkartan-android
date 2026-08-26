@@ -99,6 +99,7 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
 import org.maplibre.android.annotations.IconFactory
+import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
@@ -113,15 +114,20 @@ import org.maplibre.android.maps.Style
 import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.layers.PropertyFactory.circleColor
 import org.maplibre.android.style.layers.PropertyFactory.circleRadius
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
+import org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap
+import org.maplibre.android.style.layers.PropertyFactory.iconIgnorePlacement
+import org.maplibre.android.style.layers.PropertyFactory.iconImage
 import org.maplibre.android.style.layers.PropertyFactory.lineCap
 import org.maplibre.android.style.layers.PropertyFactory.lineColor
 import org.maplibre.android.style.layers.PropertyFactory.lineJoin
 import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.layers.RasterLayer
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.sources.GeoJsonSource
 
 @Composable
@@ -690,6 +696,7 @@ private class MapHolder {
     private var shownSearchPlaceToken = -1
     private var lastFitVersion = 0
     private var offlinePreview = false
+    private var distanceMarkerIconCache: Set<String> = emptySet()
 
     fun createContainer(
         context: android.content.Context,
@@ -702,12 +709,11 @@ private class MapHolder {
         onDismissSearchPlace: () -> Unit,
     ): MapContainerView {
         val mapView = MapView(context).also { it.onCreate(Bundle()) }
-        val markerOverlay = DistanceMarkerOverlay(context)
         val captureView = MeasureCaptureView(context).apply {
             this.onStrokeFinished = onStrokeFinished
             this.onPreviewChanged = onPreviewChanged
         }
-        val container = MapContainerView(context, mapView, markerOverlay, captureView)
+        val container = MapContainerView(context, mapView, captureView)
         this.mapView = mapView
         this.container = container
         mapView.getMapAsync { readyMap ->
@@ -760,7 +766,6 @@ private class MapHolder {
             readyMap.addOnCameraMoveListener {
                 reportCameraPosition()
                 updateDistanceMarkers()
-                container.invalidateMarkers()
             }
             readyMap.setOnMarkerClickListener { marker ->
                 val pin = pinMarkers.entries
@@ -799,6 +804,7 @@ private class MapHolder {
         pinMarkers = emptyMap()
         searchMarker = null
         selectedSearchPlace = null
+        distanceMarkerIconCache = emptySet()
     }
 
     fun setSlopeVisible(visible: Boolean) {
@@ -875,17 +881,75 @@ private class MapHolder {
 
     private fun updateDistanceMarkers() {
         val readyMap = map ?: return
+        val style = readyMap.style ?: return
         val spacing = DistanceMeasurement.markerSpacing(routeMeters, readyMap.cameraPosition.zoom)
-        container?.updateMarkers(DistanceMeasurement.markers(routeCoordinates, spacing))
+        val markers = DistanceMeasurement.markers(routeCoordinates, spacing)
+        val context = mapView?.context
+        if (context != null) {
+            markers.map { DistanceMeasurement.markerLabel(it.meters) }.distinct().forEach { label ->
+                if (label !in distanceMarkerIconCache) {
+                    style.addImage(distanceMarkerImageId(label), distanceMarkerBitmap(context, label))
+                    distanceMarkerIconCache += label
+                }
+            }
+        }
+        val features = markers.map { marker ->
+            Feature.fromGeometry(
+                Point.fromLngLat(marker.coordinate.longitude, marker.coordinate.latitude),
+            ).apply {
+                addStringProperty("icon", distanceMarkerImageId(DistanceMeasurement.markerLabel(marker.meters)))
+            }
+        }
+        style.getSourceAs<GeoJsonSource>(DISTANCE_MARKERS_SOURCE)
+            ?.setGeoJson(FeatureCollection.fromFeatures(features))
+    }
+
+    private fun distanceMarkerImageId(label: String) = "distance-marker-$label"
+
+    private fun distanceMarkerBitmap(context: android.content.Context, label: String): Bitmap {
+        val density = context.resources.displayMetrics.density
+        val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.BLACK
+            textAlign = Paint.Align.CENTER
+            textSize = 11 * density * context.resources.configuration.fontScale
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+        val width = (textPaint.measureText(label) + 14 * density)
+        val height = 24 * density
+        val bitmap = Bitmap.createBitmap(
+            width.toInt().coerceAtLeast(1),
+            height.toInt().coerceAtLeast(1),
+            Bitmap.Config.ARGB_8888,
+        )
+        val canvas = android.graphics.Canvas(bitmap)
+        val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.WHITE
+            style = Paint.Style.FILL
+        }
+        val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.rgb(11, 110, 79)
+            style = Paint.Style.STROKE
+            strokeWidth = 2 * density
+        }
+        val radius = height / 2
+        val inset = strokePaint.strokeWidth / 2
+        canvas.drawRoundRect(inset, inset, width - inset, height - inset, radius, radius, circlePaint)
+        canvas.drawRoundRect(inset, inset, width - inset, height - inset, radius, radius, strokePaint)
+        val baseline = height / 2 - (textPaint.descent() + textPaint.ascent()) / 2
+        canvas.drawText(label, width / 2, baseline, textPaint)
+        return bitmap
     }
 
     private fun addMeasurementLayers(style: Style) {
         val routeSource = GeoJsonSource(ROUTE_SOURCE)
         val startSource = GeoJsonSource(START_SOURCE)
         val endSource = GeoJsonSource(END_SOURCE)
+        val distanceMarkersSource = GeoJsonSource(DISTANCE_MARKERS_SOURCE)
         style.addSource(routeSource)
         style.addSource(startSource)
         style.addSource(endSource)
+        style.addSource(distanceMarkersSource)
+        distanceMarkerIconCache = emptySet()
 
         style.addLayer(
             LineLayer("route-casing", ROUTE_SOURCE).withProperties(
@@ -917,6 +981,13 @@ private class MapHolder {
                 circleColor(android.graphics.Color.rgb(11, 110, 79)),
                 circleStrokeColor(android.graphics.Color.WHITE),
                 circleStrokeWidth(2.5f),
+            ),
+        )
+        style.addLayer(
+            SymbolLayer("distance-markers-layer", DISTANCE_MARKERS_SOURCE).withProperties(
+                iconImage(Expression.get("icon")),
+                iconAllowOverlap(true),
+                iconIgnorePlacement(true),
             ),
         )
     }
@@ -1164,5 +1235,6 @@ private class MapHolder {
         private const val ROUTE_SOURCE = "route"
         private const val START_SOURCE = "route-start"
         private const val END_SOURCE = "route-end"
+        private const val DISTANCE_MARKERS_SOURCE = "distance-markers"
     }
 }
