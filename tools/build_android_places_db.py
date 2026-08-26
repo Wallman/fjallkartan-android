@@ -19,17 +19,40 @@ def build(source: Path, output: Path) -> None:
         db.execute("ATTACH DATABASE ? AS source", (str(source),))
         db.executescript(
             """
-            CREATE TABLE place AS SELECT * FROM source.place;
-            CREATE TABLE alias AS SELECT * FROM source.alias;
-            CREATE TABLE municipality AS SELECT * FROM source.municipality;
-            CREATE TABLE language AS SELECT * FROM source.language;
+            CREATE TABLE place (
+                id      INTEGER PRIMARY KEY,
+                kind    INTEGER NOT NULL,
+                rank    INTEGER NOT NULL,
+                lat     INTEGER NOT NULL,
+                lon     INTEGER NOT NULL,
+                country INTEGER NOT NULL,
+                muni    INTEGER,
+                name    TEXT NOT NULL
+            );
+            CREATE TABLE alias (
+                id       INTEGER PRIMARY KEY,
+                place_id INTEGER NOT NULL,
+                name     TEXT NOT NULL,
+                lang     INTEGER
+            );
+            CREATE TABLE municipality (
+                id      INTEGER PRIMARY KEY,
+                name    TEXT,
+                region  TEXT,
+                country INTEGER NOT NULL
+            );
+            CREATE TABLE language (
+                id   INTEGER PRIMARY KEY,
+                code TEXT NOT NULL
+            );
 
-            CREATE UNIQUE INDEX place_id ON place(id);
+            INSERT INTO place SELECT * FROM source.place;
+            INSERT INTO alias SELECT * FROM source.alias;
+            INSERT INTO municipality SELECT * FROM source.municipality;
+            INSERT INTO language SELECT * FROM source.language;
+
             CREATE INDEX place_muni ON place(muni);
-            CREATE UNIQUE INDEX alias_id ON alias(id);
             CREATE INDEX alias_place ON alias(place_id);
-            CREATE UNIQUE INDEX municipality_id ON municipality(id);
-            CREATE UNIQUE INDEX language_id ON language(id);
 
             CREATE VIRTUAL TABLE place_fts USING fts4(
                 name,
