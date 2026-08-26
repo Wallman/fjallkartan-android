@@ -129,6 +129,7 @@ import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.layers.RasterLayer
 import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.sources.GeoJsonSource
+import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
 fun MapScreen(viewModel: MapViewModel = viewModel()) {
@@ -212,7 +213,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     }
     LaunchedEffect(guideTip) {
         if (guideTip != null) {
-            delay(7_000)
+            delay(7_000.milliseconds)
             guideTip = null
         }
     }

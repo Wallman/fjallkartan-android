@@ -62,6 +62,8 @@ import fjallkartan.fjallkartan.BuildConfig
 import fjallkartan.fjallkartan.R
 import kotlinx.coroutines.launch
 import org.maplibre.android.offline.OfflineManager
+import androidx.core.content.edit
+import androidx.core.net.toUri
 
 private data class GuidePage(
     val icon: ImageVector,
@@ -132,7 +134,6 @@ fun AboutSheet(
     onShowGuide: () -> Unit,
     onShowDebug: () -> Unit,
 ) {
-    val context = LocalContext.current
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
             Text(localText("About"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
@@ -163,7 +164,7 @@ private fun LinkRow(title: String, url: String) {
     ListItem(
         headlineContent = { Text(title) },
         modifier = Modifier.combinedClickable(onClick = {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+            context.startActivity(Intent(Intent.ACTION_VIEW, url.toUri()))
         }),
     )
 }
@@ -280,7 +281,7 @@ class GuideTips(context: Context) {
 
     fun take(key: String): Boolean {
         if (preferences.getBoolean(key, false)) return false
-        preferences.edit().putBoolean(key, true).apply()
+        preferences.edit { putBoolean(key, true) }
         return true
     }
 }
