@@ -24,6 +24,52 @@ DENSITIES = {
     "xxhdpi": 144,
     "xxxhdpi": 192,
 }
+LAUNCHER_CONTENT_FRACTION = 0.78
+
+
+def zoom_out_with_edge_extension(
+    source: Image.Image,
+    content_fraction: float = LAUNCHER_CONTENT_FRACTION,
+) -> Image.Image:
+    """Inset artwork while extending its edge pixels instead of adding a frame."""
+    size = source.width
+    inner_size = round(size * content_fraction)
+    inset = (size - inner_size) // 2
+    far_edge = inset + inner_size
+    inner = source.resize((inner_size, inner_size), Image.Resampling.LANCZOS)
+    result = Image.new(source.mode, (size, size))
+    result.paste(inner, (inset, inset))
+
+    result.paste(inner.crop((0, 0, inner_size, 1)).resize((inner_size, inset)), (inset, 0))
+    result.paste(
+        inner.crop((0, inner_size - 1, inner_size, inner_size)).resize((inner_size, size - far_edge)),
+        (inset, far_edge),
+    )
+    result.paste(inner.crop((0, 0, 1, inner_size)).resize((inset, inner_size)), (0, inset))
+    result.paste(
+        inner.crop((inner_size - 1, 0, inner_size, inner_size)).resize((size - far_edge, inner_size)),
+        (far_edge, inset),
+    )
+
+    result.paste(inner.getpixel((0, 0)), (0, 0, inset, inset))
+    result.paste(inner.getpixel((inner_size - 1, 0)), (far_edge, 0, size, inset))
+    result.paste(inner.getpixel((0, inner_size - 1)), (0, far_edge, inset, size))
+    result.paste(
+        inner.getpixel((inner_size - 1, inner_size - 1)),
+        (far_edge, far_edge, size, size),
+    )
+    return result
+
+
+def inset_transparent(source: Image.Image) -> Image.Image:
+    inner_size = round(source.width * LAUNCHER_CONTENT_FRACTION)
+    inset = (source.width - inner_size) // 2
+    result = Image.new("RGBA", source.size, (0, 0, 0, 0))
+    result.alpha_composite(
+        source.resize((inner_size, inner_size), Image.Resampling.LANCZOS),
+        (inset, inset),
+    )
+    return result
 
 
 def rotated_bar(
@@ -93,7 +139,10 @@ def save_adaptive_layers(source: Image.Image) -> None:
     directory = RES / "drawable-nodpi"
     directory.mkdir(parents=True, exist_ok=True)
     source.save(directory / "ic_launcher_art_bitmap.png", optimize=True)
-    monochrome_marker().save(directory / "ic_launcher_monochrome.png", optimize=True)
+    inset_transparent(monochrome_marker()).save(
+        directory / "ic_launcher_monochrome.png",
+        optimize=True,
+    )
 
 
 def save_play_icons(source: Image.Image) -> None:
@@ -107,8 +156,9 @@ def save_play_icons(source: Image.Image) -> None:
 
 def main() -> None:
     source = Image.open(SOURCE).convert("RGB")
-    save_launcher_icons(source)
-    save_adaptive_layers(source)
+    launcher_source = zoom_out_with_edge_extension(source)
+    save_launcher_icons(launcher_source)
+    save_adaptive_layers(launcher_source)
     save_play_icons(source)
     print("Generated Android launcher and Google Play icons.")
 
