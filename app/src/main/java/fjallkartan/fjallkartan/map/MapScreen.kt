@@ -79,6 +79,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -179,26 +180,27 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var zoom by remember { mutableDoubleStateOf(3.5) }
     var metersPerPixel by remember { mutableDoubleStateOf(0.0) }
-    var showElevation by remember { mutableStateOf(false) }
-    var showSearch by remember { mutableStateOf(false) }
-    var showSavedRoutes by remember { mutableStateOf(false) }
-    var showSaveRoute by remember { mutableStateOf(false) }
-    var selectedPin by remember { mutableStateOf<SavedPin?>(null) }
-    var isPickingOffline by remember { mutableStateOf(false) }
-    var showOfflineRegions by remember { mutableStateOf(false) }
-    var showTools by remember { mutableStateOf(false) }
-    var showLegend by remember { mutableStateOf(false) }
-    var showAbout by remember { mutableStateOf(false) }
-    var showDebug by remember { mutableStateOf(false) }
-    var showZoom by remember { mutableStateOf(false) }
-    var showGuide by remember { mutableStateOf(false) }
-    var guideTip by remember { mutableStateOf<String?>(null) }
+    var showElevation by rememberSaveable { mutableStateOf(false) }
+    var showSearch by rememberSaveable { mutableStateOf(false) }
+    var showSavedRoutes by rememberSaveable { mutableStateOf(false) }
+    var showSaveRoute by rememberSaveable { mutableStateOf(false) }
+    var selectedPinId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedPin = selectedPinId?.let { id -> savedPins.firstOrNull { it.id.toString() == id } }
+    var isPickingOffline by rememberSaveable { mutableStateOf(false) }
+    var showOfflineRegions by rememberSaveable { mutableStateOf(false) }
+    var showTools by rememberSaveable { mutableStateOf(false) }
+    var showLegend by rememberSaveable { mutableStateOf(false) }
+    var showAbout by rememberSaveable { mutableStateOf(false) }
+    var showDebug by rememberSaveable { mutableStateOf(false) }
+    var showZoom by rememberSaveable { mutableStateOf(false) }
+    var showGuide by rememberSaveable { mutableStateOf(false) }
+    var guideTip by rememberSaveable { mutableStateOf<String?>(null) }
     val guideTips = remember { GuideTips(context) }
     val reviewPrompter = remember { ReviewPrompter(context) }
-    var reviewPending by remember { mutableStateOf(false) }
+    var reviewPending by rememberSaveable { mutableStateOf(false) }
     var measurementStartVersion by remember { mutableStateOf<Int?>(null) }
     val knownCompletedRegions = remember { mutableSetOf<String>() }
-    var offlineRegionsInitialized by remember { mutableStateOf(false) }
+    var offlineRegionsInitialized by rememberSaveable { mutableStateOf(false) }
     var pendingOfflineBounds by remember { mutableStateOf<LatLngBounds?>(null) }
     var offlinePreviewBounds by remember { mutableStateOf<LatLngBounds?>(null) }
     val mapState = remember { MapHolder() }
@@ -317,7 +319,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             routeFitVersion = routeFitVersion,
             isPickingOffline = isPickingOffline,
             onDropPin = viewModel::dropPin,
-            onPinSelected = { pinId -> selectedPin = savedPins.firstOrNull { it.id == pinId } },
+            onPinSelected = { pinId -> selectedPinId = pinId.toString() },
             onSaveSearchPlace = viewModel::savePlace,
             onDismissSearchPlace = { viewModel.selectPlace(null) },
             onCameraChanged = { camera, updatedMetersPerPixel ->
@@ -701,7 +703,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             pin = pin,
             onSave = { name, notes -> viewModel.updatePin(pin, name, notes) },
             onDelete = { viewModel.deletePin(pin) },
-            onDismiss = { selectedPin = null },
+            onDismiss = { selectedPinId = null },
         )
     }
     if (showOfflineRegions) {
