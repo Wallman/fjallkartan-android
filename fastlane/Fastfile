@@ -155,9 +155,12 @@ platform :android do
     require_play_screenshots!
     upload_to_play_store(
       **play_upload_options,
+      track: "alpha",
+      version_code: 3,
       skip_upload_aab: true,
       skip_upload_apk: true,
-      skip_upload_metadata: true
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true
     )
   end
 
