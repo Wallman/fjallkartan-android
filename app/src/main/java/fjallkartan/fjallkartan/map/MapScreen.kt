@@ -359,7 +359,11 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         val controlsModifier = if (isLandscape) {
             Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = statusBarInset + 6.dp, end = 48.dp)
+                // Unlabeled buttons (e.g. the collapsed "more" button) are 48dp circles with
+                // no centering inset, while labeled buttons shown when expanded are centered
+                // in a wider 64dp column. The extra 8dp here equalizes the gap to the compass
+                // between the collapsed and expanded states.
+                .padding(top = statusBarInset + 6.dp, end = 56.dp)
         } else {
             Modifier
                 .align(Alignment.TopEnd)
