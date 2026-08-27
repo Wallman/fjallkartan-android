@@ -133,6 +133,7 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.location.LocationComponentActivationOptions
+import org.maplibre.android.location.OnLocationCameraTransitionListener
 import org.maplibre.android.location.modes.CameraMode
 import org.maplibre.android.location.modes.RenderMode
 import org.maplibre.android.maps.MapLibreMap
@@ -1486,8 +1487,22 @@ private class MapHolder {
                 LocationComponentActivationOptions.builder(mapView?.context ?: return, style).build(),
             )
             component.isLocationComponentEnabled = true
-            component.cameraMode = CameraMode.TRACKING
             component.renderMode = RenderMode.COMPASS
+            // Automatically done on iOS
+            if (readyMap.cameraPosition.zoom < MINIMUM_ZOOM_LEVEL_FOR_TRACKING) {
+                component.setCameraMode(
+                    CameraMode.TRACKING,
+                    object : OnLocationCameraTransitionListener {
+                        override fun onLocationCameraTransitionFinished(cameraMode: Int) {
+                            component.zoomWhileTracking(DEFAULT_ZOOM_LEVEL_FOR_TRACKING)
+                        }
+
+                        override fun onLocationCameraTransitionCanceled(cameraMode: Int) = Unit
+                    },
+                )
+            } else {
+                component.cameraMode = CameraMode.TRACKING
+            }
         } else if (component.isLocationComponentActivated) {
             component.cameraMode = CameraMode.NONE
             component.isLocationComponentEnabled = false
@@ -1499,5 +1514,9 @@ private class MapHolder {
         private const val START_SOURCE = "route-start"
         private const val END_SOURCE = "route-end"
         private const val DISTANCE_MARKERS_SOURCE = "distance-markers"
+
+        // Matches MapLibre iOS's MLNMinimumZoomLevelForUserTracking / MLNDefaultZoomLevelForUserTracking.
+        private const val MINIMUM_ZOOM_LEVEL_FOR_TRACKING = 10.5
+        private const val DEFAULT_ZOOM_LEVEL_FOR_TRACKING = 14.0
     }
 }
