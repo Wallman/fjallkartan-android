@@ -140,10 +140,13 @@ platform :android do
     check_play_metadata!
     upload_to_play_store(
       **play_upload_options,
+      track: "alpha",
+      version_code: 3,
       skip_upload_aab: true,
       skip_upload_apk: true,
       skip_upload_images: true,
-      skip_upload_screenshots: true
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true
     )
   end
 
