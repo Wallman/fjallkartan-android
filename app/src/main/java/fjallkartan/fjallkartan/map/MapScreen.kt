@@ -2,6 +2,7 @@ package fjallkartan.fjallkartan.map
 
 import android.Manifest
 import android.app.Activity
+import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Paint
@@ -22,11 +23,13 @@ import androidx.core.graphics.createBitmap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.expandHorizontally
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
@@ -34,7 +37,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -45,6 +52,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.automirrored.filled.ListAlt
@@ -77,6 +85,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
@@ -86,6 +95,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -165,6 +176,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val offlineRegions by viewModel.offlineRegions.collectAsStateWithLifecycle()
     val offlineError by viewModel.offlineError.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var zoom by remember { mutableDoubleStateOf(3.5) }
     var metersPerPixel by remember { mutableDoubleStateOf(0.0) }
     var showElevation by remember { mutableStateOf(false) }
@@ -319,13 +331,32 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             OfflinePreviewOverlay(Modifier.fillMaxSize())
         }
 
-        Column(
-            modifier = Modifier
+        val statusBarInset = WindowInsets.statusBars.asPaddingValues().calculateTopPadding()
+        val controlsModifier = if (isLandscape) {
+            Modifier
+                .align(Alignment.TopEnd)
+                .padding(top = statusBarInset + 6.dp, end = 48.dp)
+        } else {
+            Modifier
                 .align(Alignment.TopEnd)
                 .padding(top = 110.dp, end = 4.dp)
-                .width(64.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
+                .width(64.dp)
+        }
+        val controlsEnter: (Int) -> androidx.compose.animation.EnterTransition = { delayMs ->
+            if (isLandscape) {
+                fadeIn(tween(durationMillis = 180, delayMillis = delayMs)) +
+                    expandHorizontally(tween(durationMillis = 180, delayMillis = delayMs), expandFrom = Alignment.Start)
+            } else {
+                fadeIn(tween(durationMillis = 180, delayMillis = delayMs)) +
+                    expandVertically(tween(durationMillis = 180, delayMillis = delayMs), expandFrom = Alignment.Top)
+            }
+        }
+        val controlsExit: androidx.compose.animation.ExitTransition = if (isLandscape) {
+            fadeOut(tween(durationMillis = 120)) + shrinkHorizontally(tween(durationMillis = 120), shrinkTowards = Alignment.Start)
+        } else {
+            fadeOut(tween(durationMillis = 120)) + shrinkVertically(tween(durationMillis = 120), shrinkTowards = Alignment.Top)
+        }
+        MapControlsBar(isLandscape = isLandscape, modifier = controlsModifier) {
             MapControlButton(onClick = { showSearch = true }) {
                 Icon(Icons.Default.Search, contentDescription = "Search places")
             }
@@ -387,9 +418,8 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             measurementButtons.forEachIndexed { index, button ->
                 AnimatedVisibility(
                     visible = measurement.isMeasuring,
-                    enter = fadeIn(tween(durationMillis = 180, delayMillis = index * 30)) +
-                        expandVertically(tween(durationMillis = 180, delayMillis = index * 30), expandFrom = Alignment.Top),
-                    exit = fadeOut(tween(durationMillis = 120)) + shrinkVertically(tween(durationMillis = 120), shrinkTowards = Alignment.Top),
+                    enter = controlsEnter(index * 30),
+                    exit = controlsExit,
                 ) {
                     button()
                 }
@@ -407,7 +437,11 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     label = "moreToolsIcon",
                 ) { expanded ->
                     Icon(
-                        imageVector = if (expanded) Icons.Default.ExpandLess else Icons.Default.MoreHoriz,
+                        imageVector = if (expanded) {
+                            if (isLandscape) Icons.Default.ChevronLeft else Icons.Default.ExpandLess
+                        } else {
+                            Icons.Default.MoreHoriz
+                        },
                         contentDescription = "More map tools",
                     )
                 }
@@ -473,9 +507,8 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             extraToolButtons.forEachIndexed { index, spec ->
                 AnimatedVisibility(
                     visible = showTools && spec.visible,
-                    enter = fadeIn(tween(durationMillis = 180, delayMillis = index * 30)) +
-                        expandVertically(tween(durationMillis = 180, delayMillis = index * 30), expandFrom = Alignment.Top),
-                    exit = fadeOut(tween(durationMillis = 120)) + shrinkVertically(tween(durationMillis = 120), shrinkTowards = Alignment.Top),
+                    enter = controlsEnter(index * 30),
+                    exit = controlsExit,
                 ) {
                     spec.content()
                 }
@@ -729,14 +762,32 @@ private fun OfflinePreviewOverlay(modifier: Modifier = Modifier) {
 }
 
 @Composable
+private fun MapControlsBar(
+    isLandscape: Boolean,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    if (isLandscape) {
+        Row(modifier = modifier, verticalAlignment = Alignment.Top) { content() }
+    } else {
+        Column(modifier = modifier, horizontalAlignment = Alignment.CenterHorizontally) { content() }
+    }
+}
+
+@Composable
 private fun MapControlButton(
     onClick: () -> Unit,
     enabled: Boolean = true,
     label: String? = null,
     content: @Composable () -> Unit,
 ) {
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     Column(
-        modifier = Modifier.padding(bottom = if (label != null) 6.dp else 10.dp),
+        modifier = if (isLandscape) {
+            Modifier.padding(end = 10.dp)
+        } else {
+            Modifier.padding(bottom = if (label != null) 6.dp else 10.dp)
+        },
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
         Surface(shape = CircleShape, shadowElevation = 4.dp, color = Color.White) {
@@ -915,12 +966,24 @@ private class MapHolder {
             map = readyMap
             container.bindMap(readyMap)
             val density = context.resources.displayMetrics.density
+            val statusBarInsetPx = ViewCompat.getRootWindowInsets(mapView)
+                ?.getInsets(WindowInsetsCompat.Type.statusBars())?.top
+                ?: (24 * density).toInt()
+            val isLandscape = context.resources.configuration.orientation ==
+                Configuration.ORIENTATION_LANDSCAPE
+            // In landscape the button bar now sits at the top-left, so the compass
+            // stays at the top-right on the same row, next to the buttons.
+            val compassTopMargin = if (isLandscape) {
+                statusBarInsetPx + (6 * density).toInt()
+            } else {
+                (56 * density).toInt()
+            }
             readyMap.uiSettings.apply {
                 isLogoEnabled = false
                 isAttributionEnabled = false
                 isCompassEnabled = true
                 setCompassGravity(Gravity.TOP or Gravity.END)
-                setCompassMargins(0, (56 * density).toInt(), (12 * density).toInt(), 0)
+                setCompassMargins(0, compassTopMargin, (12 * density).toInt(), 0)
                 isTiltGesturesEnabled = false
             }
             readyMap.setInfoWindowAdapter { marker ->
