@@ -78,6 +78,24 @@ object KartverketTileProxy {
 
     fun offlineStyleUrl(): String = "http://127.0.0.1:$PORT/style.json"
 
+    fun isActive(): Boolean {
+        val server = serverSocket
+        return started.get() && server != null && !server.isClosed
+    }
+
+    fun stop() {
+        started.set(false)
+        serverSocket?.let { server -> runCatching { server.close() } }
+        serverSocket = null
+    }
+
+    fun restartIfNeeded() {
+        if (isActive()) return
+        Log.d(TAG, "Proxy not active, restarting")
+        stop()
+        start()
+    }
+
     private fun acceptConnections(server: ServerSocket) {
         while (!server.isClosed) {
             try {
