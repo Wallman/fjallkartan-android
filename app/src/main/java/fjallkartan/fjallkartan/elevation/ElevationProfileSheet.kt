@@ -9,6 +9,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowDownward
+import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Terrain
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -17,7 +20,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -42,14 +47,14 @@ fun ElevationProfileSheet(
             ElevationChart(state, Modifier.fillMaxWidth().height(220.dp))
             HorizontalDivider()
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Metric("Ascent", state.ascent)
-                Metric("Descent", state.descent)
-                Metric("Lowest", state.minimum)
-                Metric("Highest", state.maximum)
+                Metric("Ascent", state.ascent, Icons.Default.ArrowUpward)
+                Metric("Descent", state.descent, Icons.Default.ArrowDownward)
+                Metric("Lowest", state.minimum, Icons.Default.Terrain)
+                Metric("Highest", state.maximum, Icons.Default.Terrain)
             }
             if (state.isPartial) {
                 Row(
-                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
                     Icon(
@@ -70,9 +75,17 @@ fun ElevationProfileSheet(
 }
 
 @Composable
-private fun Metric(label: String, value: Double?) {
+private fun Metric(label: String, value: Double?, icon: ImageVector) {
     Column {
-        Text(label, style = MaterialTheme.typography.labelMedium)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(
+                icon,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.size(14.dp),
+            )
+            Text(label, style = MaterialTheme.typography.labelMedium)
+        }
         Text(
             value?.let { "${it.roundToInt()} m" } ?: "—",
             style = MaterialTheme.typography.titleMedium,
