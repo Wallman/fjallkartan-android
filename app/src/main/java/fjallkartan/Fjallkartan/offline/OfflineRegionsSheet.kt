@@ -31,7 +31,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import android.text.format.Formatter
 import java.text.DateFormat
 import java.util.Date
 
@@ -45,6 +47,7 @@ fun OfflineRegionsSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
+        val context = LocalContext.current
         var pendingDeleteId by remember { mutableStateOf<String?>(null) }
         LazyColumn(Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
             item { Text("Offline maps", modifier = Modifier.padding(16.dp)) }
@@ -78,6 +81,11 @@ fun OfflineRegionsSheet(
                                 DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
                                     .format(Date.from(region.createdAt)),
                             )
+                            if (region.status == OfflineStatus.Complete && region.completedBytes > 0) {
+                                Text(
+                                    " • ${Formatter.formatShortFileSize(context, region.completedBytes)}",
+                                )
+                            }
                         }
                     },
                     trailingContent = {
