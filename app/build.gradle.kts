@@ -18,7 +18,7 @@ android {
         applicationId = "fjallkartan.fjallkartan"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
+        versionCode = 3
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
@@ -37,6 +37,9 @@ android {
             )
             optimization {
                 enable = false
+            }
+            ndk {
+                debugSymbolLevel = "FULL"
             }
         }
     }
