@@ -7,15 +7,18 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.unit.dp
@@ -45,11 +48,22 @@ fun ElevationProfileSheet(
                 Metric("Highest", state.maximum)
             }
             if (state.isPartial) {
-                Text(
-                    "Elevation coverage: ${(state.coverage * 100).roundToInt()}%",
-                    color = MaterialTheme.colorScheme.secondary,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
+                Row(
+                    verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Icon(
+                        Icons.Default.WarningAmber,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.secondary,
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Text(
+                        "Part of this route is outside the covered area, so the totals are a minimum.",
+                        color = MaterialTheme.colorScheme.secondary,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
             }
         }
     }

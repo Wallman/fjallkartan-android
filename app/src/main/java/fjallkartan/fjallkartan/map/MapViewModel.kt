@@ -149,6 +149,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             route.coordinates,
             route.strokeSizes,
             route.meters,
+            route.name,
         )
         _elevation.value = if (route.elevations.isEmpty()) {
             ElevationProfileState()

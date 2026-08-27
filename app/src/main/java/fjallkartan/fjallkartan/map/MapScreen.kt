@@ -36,6 +36,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
@@ -53,6 +54,7 @@ import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.automirrored.filled.ListAlt
@@ -61,6 +63,7 @@ import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
+import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
@@ -537,30 +540,71 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         }
 
         if (measurement.totalMeters > 0) {
-            Column(
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 12.dp, bottom = 44.dp)
+            val badgeModifier = if (isLandscape) {
+                Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(start = 8.dp, bottom = 76.dp)
+            } else {
+                Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = statusBarInset + 12.dp)
+            }
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = badgeModifier
                     .background(Color.White.copy(alpha = 0.9f), CircleShape)
-                    .clickable(enabled = elevation.hasData) { showElevation = true }
-                    .padding(horizontal = 12.dp, vertical = 7.dp),
-                horizontalAlignment = Alignment.End,
+                    .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
             ) {
-                Text(
-                    text = DistanceMeasurement.formatDistance(measurement.totalMeters),
-                    color = Color.Black,
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                when {
-                    elevation.isLoading -> Text(
-                        "Loading elevation…",
-                        color = Color.DarkGray,
-                        style = MaterialTheme.typography.labelSmall,
+                Column(
+                    modifier = Modifier.clickable(enabled = elevation.hasData) { showElevation = true },
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    measurement.name?.let {
+                        Text(
+                            text = it,
+                            color = Color.Black,
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                    Text(
+                        text = DistanceMeasurement.formatDistance(measurement.totalMeters),
+                        color = Color.Black,
+                        style = MaterialTheme.typography.titleSmall,
                     )
-                    elevation.hasData -> Text(
-                        "↑ ${elevation.ascent.toInt()} m  ↓ ${elevation.descent.toInt()} m",
-                        color = Color.DarkGray,
-                        style = MaterialTheme.typography.labelSmall,
+                    AnimatedVisibility(
+                        visible = elevation.hasData,
+                        enter = fadeIn(tween(220)) + expandVertically(tween(220), expandFrom = Alignment.Top),
+                        exit = fadeOut(tween(160)) + shrinkVertically(tween(160), shrinkTowards = Alignment.Top),
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            Text(
+                                "↑ ${elevation.ascent.toInt()} m  ↓ ${elevation.descent.toInt()} m",
+                                color = Color.DarkGray,
+                                style = MaterialTheme.typography.labelSmall,
+                            )
+                            if (elevation.isPartial) {
+                                Icon(
+                                    Icons.Default.WarningAmber,
+                                    contentDescription = "Elevation data incomplete for part of this route",
+                                    tint = Color(0xFFF28C28),
+                                    modifier = Modifier.size(13.dp),
+                                )
+                            }
+                        }
+                    }
+                }
+                IconButton(
+                    onClick = { viewModel.clearMeasurement() },
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Clear measurement",
+                        tint = Color.DarkGray,
+                        modifier = Modifier.size(18.dp),
                     )
                 }
             }

@@ -18,6 +18,7 @@ data class MeasurementState(
     val committedMeters: Double = 0.0,
     val previewMeters: Double? = null,
     val version: Int = 0,
+    val name: String? = null,
 ) {
     val totalMeters: Double get() = committedMeters + (previewMeters ?: 0.0)
     val canUndo: Boolean get() = strokeSizes.isNotEmpty()
@@ -38,6 +39,7 @@ object DistanceMeasurement {
             committedMeters = length(coordinates),
             previewMeters = null,
             version = state.version + 1,
+            name = null,
         )
     }
 
@@ -50,6 +52,7 @@ object DistanceMeasurement {
             committedMeters = length(coordinates),
             previewMeters = null,
             version = state.version + 1,
+            name = null,
         )
     }
 
@@ -66,6 +69,7 @@ object DistanceMeasurement {
         coordinates: List<GeoCoordinate>,
         strokeSizes: List<Int>,
         meters: Double,
+        name: String? = null,
     ): MeasurementState {
         return MeasurementState(
             isMeasuring = false,
@@ -73,6 +77,7 @@ object DistanceMeasurement {
             strokeSizes = strokeSizes,
             committedMeters = meters,
             version = state.version + 1,
+            name = name,
         )
     }
 
