@@ -1,16 +1,20 @@
 package fjallkartan.fjallkartan.offline
 
-import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -18,8 +22,15 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import java.text.DateFormat
 import java.util.Date
@@ -34,6 +45,7 @@ fun OfflineRegionsSheet(
     onDismiss: () -> Unit,
 ) {
     ModalBottomSheet(onDismissRequest = onDismiss) {
+        var pendingDeleteId by remember { mutableStateOf<String?>(null) }
         LazyColumn(Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
             item { Text("Offline maps", modifier = Modifier.padding(16.dp)) }
             if (regions.isEmpty()) {
@@ -43,15 +55,29 @@ fun OfflineRegionsSheet(
                 ListItem(
                     headlineContent = { Text(region.name) },
                     supportingContent = {
-                        Column {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(16.dp), contentAlignment = Alignment.Center) {
+                                when (region.status) {
+                                    OfflineStatus.Downloading -> CircularProgressIndicator(modifier = Modifier.size(16.dp))
+                                    OfflineStatus.Complete -> Icon(
+                                        Icons.Default.CheckCircle,
+                                        contentDescription = "Available offline",
+                                        tint = Color(0xFF2E7D32),
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    OfflineStatus.Paused -> Icon(
+                                        Icons.Default.Pause,
+                                        contentDescription = "Paused",
+                                        modifier = Modifier.size(16.dp),
+                                    )
+                                    OfflineStatus.Failed -> Unit
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
                             Text(
                                 DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
                                     .format(Date.from(region.createdAt)),
                             )
-                            if (region.status == OfflineStatus.Downloading) {
-                                CircularProgressIndicator(modifier = Modifier.size(16.dp))
-                            }
-                            Text(statusText(region))
                         }
                     },
                     trailingContent = {
@@ -67,7 +93,7 @@ fun OfflineRegionsSheet(
                                 }
                                 OfflineStatus.Complete -> Unit
                             }
-                            IconButton(onClick = { onDelete(region.id) }) {
+                            IconButton(onClick = { pendingDeleteId = region.id }) {
                                 Icon(Icons.Default.Delete, contentDescription = "Delete offline map")
                             }
                         }
@@ -75,16 +101,26 @@ fun OfflineRegionsSheet(
                 )
             }
         }
-    }
-}
-
-private fun statusText(region: OfflineRegionSummary): String {
-    region.error?.let { return it }
-    val megabytes = region.completedBytes / (1024.0 * 1024.0)
-    return when (region.status) {
-        OfflineStatus.Downloading -> "Downloading • %.1f MB".format(megabytes)
-        OfflineStatus.Paused -> "Paused • %.1f MB".format(megabytes)
-        OfflineStatus.Complete -> "Available offline • %.1f MB".format(megabytes)
-        OfflineStatus.Failed -> "Download failed"
+        val deleteTarget = regions.firstOrNull { it.id == pendingDeleteId }
+        if (deleteTarget != null) {
+            AlertDialog(
+                onDismissRequest = { pendingDeleteId = null },
+                title = { Text("Delete offline map?") },
+                text = { Text("\"${deleteTarget.name}\" will be removed and its downloaded data deleted. This can't be undone.") },
+                confirmButton = {
+                    TextButton(onClick = {
+                        onDelete(deleteTarget.id)
+                        pendingDeleteId = null
+                    }) {
+                        Text("Delete")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeleteId = null }) {
+                        Text("Cancel")
+                    }
+                },
+            )
+        }
     }
 }

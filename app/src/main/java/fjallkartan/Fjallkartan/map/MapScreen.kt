@@ -6,8 +6,8 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
-import android.os.Bundle
 import android.os.Build
+import android.os.Bundle
 import android.os.StatFs
 import android.text.format.Formatter
 import android.view.Gravity
@@ -28,42 +28,41 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
-import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.outlined.Download
-import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MyLocation
-import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
-import androidx.compose.ui.res.painterResource
+import androidx.compose.material.icons.outlined.Download
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Button
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -79,6 +78,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -90,16 +90,12 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.google.android.play.core.review.ReviewManagerFactory
+import fjallkartan.fjallkartan.R
+import fjallkartan.fjallkartan.elevation.ElevationProfileSheet
 import fjallkartan.fjallkartan.measurement.DistanceMeasurement
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.measurement.MeasurementState
-import fjallkartan.fjallkartan.elevation.ElevationProfileSheet
-import fjallkartan.fjallkartan.saved.NameDialog
-import fjallkartan.fjallkartan.saved.PinDetailDialog
-import fjallkartan.fjallkartan.saved.PlaceSearchSheet
-import fjallkartan.fjallkartan.saved.SavedPin
-import fjallkartan.fjallkartan.saved.SavedRoutesSheet
-import fjallkartan.fjallkartan.search.PlaceResult
 import fjallkartan.fjallkartan.offline.OfflineRegionsSheet
 import fjallkartan.fjallkartan.offline.OfflineStatus
 import fjallkartan.fjallkartan.product.AboutSheet
@@ -109,30 +105,30 @@ import fjallkartan.fjallkartan.product.GuideTips
 import fjallkartan.fjallkartan.product.LegendSheet
 import fjallkartan.fjallkartan.product.OnboardingSheet
 import fjallkartan.fjallkartan.product.ReviewPrompter
-import fjallkartan.fjallkartan.R
-import com.google.android.play.core.review.ReviewManagerFactory
+import fjallkartan.fjallkartan.saved.NameDialog
+import fjallkartan.fjallkartan.saved.PinDetailDialog
+import fjallkartan.fjallkartan.saved.PlaceSearchSheet
+import fjallkartan.fjallkartan.saved.SavedPin
+import fjallkartan.fjallkartan.saved.SavedRoutesSheet
+import fjallkartan.fjallkartan.search.PlaceResult
 import kotlinx.coroutines.delay
-import org.maplibre.android.camera.CameraPosition
-import org.maplibre.android.camera.CameraUpdateFactory
+import org.maplibre.android.annotations.IconFactory
 import org.maplibre.android.annotations.Marker
 import org.maplibre.android.annotations.MarkerOptions
-import org.maplibre.android.annotations.IconFactory
-import org.maplibre.geojson.Feature
-import org.maplibre.geojson.FeatureCollection
-import org.maplibre.geojson.LineString
-import org.maplibre.geojson.Point
+import org.maplibre.android.camera.CameraPosition
+import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.location.LocationComponentActivationOptions
 import org.maplibre.android.location.modes.CameraMode
 import org.maplibre.android.location.modes.RenderMode
-import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.MapLibreMap
+import org.maplibre.android.maps.MapView
 import org.maplibre.android.maps.Style
-import org.maplibre.android.style.layers.Property
+import org.maplibre.android.style.expressions.Expression
 import org.maplibre.android.style.layers.CircleLayer
 import org.maplibre.android.style.layers.LineLayer
-import org.maplibre.android.style.layers.SymbolLayer
+import org.maplibre.android.style.layers.Property
 import org.maplibre.android.style.layers.PropertyFactory.circleColor
 import org.maplibre.android.style.layers.PropertyFactory.circleRadius
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
@@ -145,8 +141,12 @@ import org.maplibre.android.style.layers.PropertyFactory.lineColor
 import org.maplibre.android.style.layers.PropertyFactory.lineJoin
 import org.maplibre.android.style.layers.PropertyFactory.lineWidth
 import org.maplibre.android.style.layers.RasterLayer
-import org.maplibre.android.style.expressions.Expression
+import org.maplibre.android.style.layers.SymbolLayer
 import org.maplibre.android.style.sources.GeoJsonSource
+import org.maplibre.geojson.Feature
+import org.maplibre.geojson.FeatureCollection
+import org.maplibre.geojson.LineString
+import org.maplibre.geojson.Point
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -566,8 +566,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(
-                    "\u2248 ${Formatter.formatShortFileSize(context, estimatedBytes)}",
-                    style = MaterialTheme.typography.bodySmall,
+                    "Estimated size: \u2248 ${Formatter.formatShortFileSize(context, estimatedBytes)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Medium,
                 )
                 if (exceedsGuard) {
                     Text(
@@ -575,7 +576,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Red,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .widthIn(max = 260.dp)
+                            .padding(horizontal = 24.dp, vertical = 4.dp),
                     )
                 } else if (insufficientStorage) {
                     Text(
@@ -583,12 +586,18 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Red,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                        modifier = Modifier
+                            .widthIn(max = 260.dp)
+                            .padding(horizontal = 24.dp, vertical = 4.dp),
                     )
                 }
                 Button(
                     onClick = { pendingOfflineBounds = mapState.currentOfflineBounds() },
                     enabled = !exceedsGuard && !insufficientStorage,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFFF28C28),
+                        contentColor = Color.White,
+                    ),
                 ) {
                     Text("Download this area")
                 }
