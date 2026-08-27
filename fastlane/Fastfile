@@ -214,7 +214,7 @@ platform :android do
 
   desc "Overwrite checked-in metadata with Google Play state so git diff shows drift"
   lane :pull do
-    status = sh("git status --porcelain fastlane/metadata/android", log: false).strip
+    status = sh("git status --porcelain metadata/android", log: false).strip
     unless status.empty?
       UI.user_error!(
         "fastlane/metadata/android has uncommitted changes; commit or stash them before pull:\n#{status}"
@@ -227,7 +227,7 @@ platform :android do
       metadata_path: METADATA_PATH
     )
 
-    diff = sh("git status --porcelain fastlane/metadata/android", log: false).strip
+    diff = sh("git status --porcelain metadata/android", log: false).strip
     if diff.empty?
       UI.success("Google Play matches the checked-in metadata")
     else
