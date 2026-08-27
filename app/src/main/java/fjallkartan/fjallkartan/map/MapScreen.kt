@@ -77,6 +77,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableDoubleStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -112,6 +113,7 @@ import fjallkartan.fjallkartan.measurement.MeasurementState
 import fjallkartan.fjallkartan.offline.OfflineRegionsSheet
 import fjallkartan.fjallkartan.offline.OfflineStatus
 import fjallkartan.fjallkartan.product.AboutSheet
+import fjallkartan.fjallkartan.product.DebugSettings
 import fjallkartan.fjallkartan.product.DebugSheet
 import fjallkartan.fjallkartan.product.GuideTipBadge
 import fjallkartan.fjallkartan.product.GuideTips
@@ -161,6 +163,12 @@ import org.maplibre.geojson.Feature
 import org.maplibre.geojson.FeatureCollection
 import org.maplibre.geojson.LineString
 import org.maplibre.geojson.Point
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.floor
+import kotlin.math.ln
+import kotlin.math.pow
+import kotlin.math.tan
 import kotlin.time.Duration.Companion.milliseconds
 
 @Composable
@@ -181,6 +189,10 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     var zoom by remember { mutableDoubleStateOf(3.5) }
     var metersPerPixel by remember { mutableDoubleStateOf(0.0) }
+    var tileZ by remember { mutableIntStateOf(0) }
+    var tileColumn by remember { mutableIntStateOf(0) }
+    var tileRow by remember { mutableIntStateOf(0) }
+    val debugSettings = remember { DebugSettings(context) }
     var showElevation by rememberSaveable { mutableStateOf(false) }
     var showSearch by rememberSaveable { mutableStateOf(false) }
     var showSavedRoutes by rememberSaveable { mutableStateOf(false) }
@@ -193,7 +205,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     var showLegend by rememberSaveable { mutableStateOf(false) }
     var showAbout by rememberSaveable { mutableStateOf(false) }
     var showDebug by rememberSaveable { mutableStateOf(false) }
-    var showZoom by rememberSaveable { mutableStateOf(false) }
+    var showZoom by rememberSaveable { mutableStateOf(debugSettings.showZoomBadge) }
     var showGuide by rememberSaveable { mutableStateOf(false) }
     var guideTip by rememberSaveable { mutableStateOf<String?>(null) }
     val guideTips = remember { GuideTips(context) }
@@ -326,6 +338,12 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             onCameraChanged = { camera, updatedMetersPerPixel ->
                 zoom = camera.zoom
                 metersPerPixel = updatedMetersPerPixel
+                camera.target?.let { target ->
+                    val (z, column, row) = tileCoordinate(target.latitude, target.longitude, camera.zoom)
+                    tileZ = z
+                    tileColumn = column
+                    tileRow = row
+                }
                 if (isPickingOffline) offlinePreviewBounds = mapState.currentOfflineBounds()
             },
         )
@@ -556,10 +574,11 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         )
         if (showZoom) {
             Text(
-                "z${"%.2f".format(zoom)}",
-                modifier = Modifier.align(Alignment.TopCenter).padding(top = 54.dp)
+                "$tileZ/$tileColumn/$tileRow",
+                style = MaterialTheme.typography.labelSmall,
+                modifier = Modifier.align(Alignment.BottomStart).padding(start = 8.dp, bottom = 4.dp)
                     .background(Color.White.copy(alpha = 0.9f), CircleShape)
-                    .padding(horizontal = 10.dp, vertical = 5.dp),
+                    .padding(horizontal = 8.dp, vertical = 3.dp),
                 color = Color.Black,
             )
         }
@@ -659,7 +678,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     if (showDebug) {
         DebugSheet(
             showZoom = showZoom,
-            onShowZoomChanged = { showZoom = it },
+            onShowZoomChanged = { showZoom = it; debugSettings.showZoomBadge = it },
             onDismiss = { showDebug = false },
         )
     }
@@ -843,6 +862,20 @@ private fun ScaleBar(metersPerPixel: Double, modifier: Modifier = Modifier) {
                 strokeWidth = strokeWidth)
         }
     }
+}
+
+/**
+ * Slippy-map tile z/x/y containing [latitude]/[longitude] at the given (fractional) MapLibre camera
+ * [zoom]. MapLibre's zoom is calibrated for 512px tiles; our raster sources use 256px tiles, so the
+ * tile z actually requested is one level deeper than the floored camera zoom.
+ */
+internal fun tileCoordinate(latitude: Double, longitude: Double, zoom: Double): Triple<Int, Int, Int> {
+    val z = floor(zoom).toInt() + 1
+    val n = 2.0.pow(z)
+    val column = floor((longitude + 180.0) / 360.0 * n).toInt()
+    val latRad = Math.toRadians(latitude)
+    val row = floor((1.0 - ln(tan(latRad) + 1.0 / cos(latRad)) / PI) / 2.0 * n).toInt()
+    return Triple(z, column, row)
 }
 
 internal data class ScaleBarScale(val widthDp: Float, val label: String)

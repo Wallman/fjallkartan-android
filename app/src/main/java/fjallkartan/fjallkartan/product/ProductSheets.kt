@@ -224,6 +224,14 @@ class GuideTips(context: Context) {
     }
 }
 
+class DebugSettings(context: Context) {
+    private val preferences = context.getSharedPreferences("debug-settings", Context.MODE_PRIVATE)
+
+    var showZoomBadge: Boolean
+        get() = preferences.getBoolean("show_zoom_badge", false)
+        set(value) = preferences.edit { putBoolean("show_zoom_badge", value) }
+}
+
 @Composable
 private fun localText(key: String): String {
     val context = LocalContext.current
