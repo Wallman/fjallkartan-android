@@ -1,5 +1,9 @@
 package fjallkartan.fjallkartan.product
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalContext
 import android.content.Context
 import org.json.JSONObject
 import java.util.Locale
@@ -22,4 +26,11 @@ class Localizer private constructor(private val translations: JSONObject) {
             ).also { shared = it }
         }
     }
+}
+
+@Composable
+fun localText(key: String): String {
+    val context = LocalContext.current
+    val locale = LocalConfiguration.current.locales[0]
+    return remember(context, locale) { Localizer.get(context) }.text(key, locale)
 }

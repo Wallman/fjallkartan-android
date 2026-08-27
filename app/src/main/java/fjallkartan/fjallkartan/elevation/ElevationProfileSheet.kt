@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import fjallkartan.fjallkartan.product.localText
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
@@ -65,7 +66,7 @@ fun ElevationProfileSheet(
                     modifier = Modifier.align(Alignment.Center),
                 )
                 TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
-                    Text("Done", fontWeight = FontWeight.SemiBold)
+                    Text(localText("Done"), fontWeight = FontWeight.SemiBold)
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp)) {

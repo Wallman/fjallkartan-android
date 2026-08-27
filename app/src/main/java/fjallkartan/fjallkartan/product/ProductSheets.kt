@@ -48,7 +48,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.core.content.edit
@@ -140,7 +139,7 @@ fun AboutSheet(
                 modifier = Modifier.combinedClickable(onClick = onShowGuide),
             )
             LinkRow(localText("Support"), "https://wallman.github.io/fjallkartan-ios/support.html")
-            LinkRow(localText("Privacy policy"), "https://wallman.github.io/fjallkartan-ios/privacy.html")
+            LinkRow(localText("Privacy Policy"), "https://wallman.github.io/fjallkartan-ios/privacy.html")
             ListItem(
                 headlineContent = { Text(localText("Version")) },
                 trailingContent = { Text("${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})") },
@@ -228,13 +227,6 @@ class DebugSettings(context: Context) {
     var showZoomBadge: Boolean
         get() = preferences.getBoolean("show_zoom_badge", false)
         set(value) = preferences.edit { putBoolean("show_zoom_badge", value) }
-}
-
-@Composable
-private fun localText(key: String): String {
-    val context = LocalContext.current
-    val locale = LocalConfiguration.current.locales[0]
-    return remember(context) { Localizer.get(context) }.text(key, locale)
 }
 
 private fun shareDiagnostics(context: Context) {

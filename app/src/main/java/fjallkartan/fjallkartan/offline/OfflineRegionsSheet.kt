@@ -36,6 +36,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import android.text.format.Formatter
+import fjallkartan.fjallkartan.product.localText
 import java.text.DateFormat
 import java.util.Date
 
@@ -53,9 +54,9 @@ fun OfflineRegionsSheet(
         val context = LocalContext.current
         var pendingDeleteId by remember { mutableStateOf<String?>(null) }
         LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(0.9f).padding(bottom = 28.dp)) {
-            item { Text("Offline maps", modifier = Modifier.padding(16.dp)) }
+            item { Text(localText("Offline regions"), modifier = Modifier.padding(16.dp)) }
             if (regions.isEmpty()) {
-                item { Text("No downloaded areas yet.", modifier = Modifier.padding(16.dp)) }
+                item { Text(localText("No offline regions"), modifier = Modifier.padding(16.dp)) }
             }
             items(regions, key = OfflineRegionSummary::id) { region ->
                 ListItem(
@@ -67,13 +68,13 @@ fun OfflineRegionsSheet(
                                     OfflineStatus.Downloading -> CircularProgressIndicator(modifier = Modifier.size(16.dp))
                                     OfflineStatus.Complete -> Icon(
                                         Icons.Default.CheckCircle,
-                                        contentDescription = "Available offline",
+                                        contentDescription = localText("Available offline"),
                                         tint = Color(0xFF2E7D32),
                                         modifier = Modifier.size(16.dp),
                                     )
                                     OfflineStatus.Paused -> Icon(
                                         Icons.Default.Pause,
-                                        contentDescription = "Paused",
+                                        contentDescription = localText("Paused"),
                                         modifier = Modifier.size(16.dp),
                                     )
                                     OfflineStatus.Failed -> Unit
@@ -95,17 +96,17 @@ fun OfflineRegionsSheet(
                         Row {
                             when (region.status) {
                                 OfflineStatus.Downloading -> IconButton(onClick = { onPause(region.id) }) {
-                                    Icon(Icons.Default.Pause, contentDescription = "Pause download")
+                                    Icon(Icons.Default.Pause, contentDescription = localText("Pause download"))
                                 }
                                 OfflineStatus.Paused, OfflineStatus.Failed -> IconButton(
                                     onClick = { onResume(region.id) },
                                 ) {
-                                    Icon(Icons.Default.PlayArrow, contentDescription = "Resume download")
+                                    Icon(Icons.Default.PlayArrow, contentDescription = localText("Resume download"))
                                 }
                                 OfflineStatus.Complete -> Unit
                             }
                             IconButton(onClick = { pendingDeleteId = region.id }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete offline map")
+                                Icon(Icons.Default.Delete, contentDescription = localText("Delete"))
                             }
                         }
                     },
@@ -116,19 +117,19 @@ fun OfflineRegionsSheet(
         if (deleteTarget != null) {
             AlertDialog(
                 onDismissRequest = { pendingDeleteId = null },
-                title = { Text("Delete offline map?") },
-                text = { Text("\"${deleteTarget.name}\" will be removed and its downloaded data deleted. This can't be undone.") },
+                title = { Text(localText("Delete this offline region?")) },
+                text = { Text(localText("This removes the downloaded area for \"%@\" from this device.").replace("%@", deleteTarget.name)) },
                 confirmButton = {
                     TextButton(onClick = {
                         onDelete(deleteTarget.id)
                         pendingDeleteId = null
                     }) {
-                        Text("Delete")
+                        Text(localText("Delete"))
                     }
                 },
                 dismissButton = {
                     TextButton(onClick = { pendingDeleteId = null }) {
-                        Text("Cancel")
+                        Text(localText("Cancel"))
                     }
                 },
             )

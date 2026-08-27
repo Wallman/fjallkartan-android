@@ -37,6 +37,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import fjallkartan.fjallkartan.measurement.DistanceMeasurement
+import fjallkartan.fjallkartan.product.localText
 import fjallkartan.fjallkartan.search.PlaceResult
 
 @Composable
@@ -69,7 +70,7 @@ fun PlaceSearchSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .focusRequester(focusRequester),
-                label = { Text("Search places") },
+                label = { Text(localText("Search places")) },
                 singleLine = true,
             )
             LazyColumn(Modifier.weight(1f)) {
@@ -99,7 +100,7 @@ fun PlaceSearchSheet(
                                 }
                                 if (place.matchedAlias != null) {
                                     Text(
-                                        "also ${place.matchedAlias}",
+                                        localText("also %@").replace("%@", place.matchedAlias),
                                         style = MaterialTheme.typography.labelSmall,
                                     )
                                 }
@@ -107,7 +108,7 @@ fun PlaceSearchSheet(
                         },
                         trailingContent = {
                             IconButton(onClick = { onSave(place) }) {
-                                Icon(Icons.Default.BookmarkAdd, contentDescription = "Save place")
+                                Icon(Icons.Default.BookmarkAdd, contentDescription = localText("Save place"))
                             }
                         },
                         modifier = Modifier.clickable { onSelect(place) },
@@ -134,7 +135,7 @@ fun SavedRoutesSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(0.9f).padding(bottom = 28.dp)) {
             item {
-                Text("Saved routes", modifier = Modifier.padding(16.dp))
+                Text(localText("Saved routes"), modifier = Modifier.padding(16.dp))
             }
             items(saved, key = SavedRoute::id) { route ->
                 ListItem(
@@ -143,10 +144,10 @@ fun SavedRoutesSheet(
                     trailingContent = {
                         Row {
                             IconButton(onClick = { renameTarget = route }) {
-                                Icon(Icons.Default.Edit, contentDescription = "Rename route")
+                                Icon(Icons.Default.Edit, contentDescription = localText("Rename route"))
                             }
                             IconButton(onClick = { onDelete(route) }) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete route")
+                                Icon(Icons.Default.Delete, contentDescription = localText("Delete route"))
                             }
                         }
                     },
@@ -155,7 +156,7 @@ fun SavedRoutesSheet(
             }
             item {
                 HorizontalDivider()
-                Text("Suggested routes", modifier = Modifier.padding(16.dp))
+                Text(localText("Suggested routes"), modifier = Modifier.padding(16.dp))
             }
             items(featured, key = FeaturedRoute::id) { featuredRoute ->
                 ListItem(
@@ -171,7 +172,7 @@ fun SavedRoutesSheet(
 
     renameTarget?.let { route ->
         NameDialog(
-            title = "Rename route",
+            title = localText("Rename route"),
             initialValue = route.name.orEmpty(),
             onConfirm = {
                 onRename(route, it)
@@ -197,15 +198,15 @@ fun NameDialog(
             TextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("Name") },
+                label = { Text(localText("Name")) },
                 singleLine = true,
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(name) }) { Text("Save") }
+            TextButton(onClick = { onConfirm(name) }) { Text(localText("Save")) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancel") }
+            TextButton(onClick = onDismiss) { Text(localText("Cancel")) }
         },
     )
 }
@@ -221,20 +222,20 @@ fun PinDetailDialog(
     var notes by remember(pin.id) { mutableStateOf(pin.notes.orEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(pin.displayName.ifBlank { "Saved pin" }) },
+        title = { Text(pin.displayName.ifBlank { localText("Saved pin") }) },
         text = {
             Column {
                 TextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
+                    label = { Text(localText("Name")) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 TextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text("Notes") },
+                    label = { Text(localText("Notes")) },
                     minLines = 3,
                     maxLines = 6,
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -250,7 +251,7 @@ fun PinDetailDialog(
             TextButton(onClick = {
                 onSave(name, notes)
                 onDismiss()
-            }) { Text("Save") }
+            }) { Text(localText("Save")) }
         },
         dismissButton = {
             Row {
@@ -258,9 +259,9 @@ fun PinDetailDialog(
                     onDelete()
                     onDismiss()
                 }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(localText("Delete"), color = MaterialTheme.colorScheme.error)
                 }
-                TextButton(onClick = onDismiss) { Text("Cancel") }
+                TextButton(onClick = onDismiss) { Text(localText("Cancel")) }
             }
         },
     )
