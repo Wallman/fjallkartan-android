@@ -4,15 +4,18 @@ package fjallkartan.fjallkartan.product
 
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -25,6 +28,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
@@ -130,7 +135,6 @@ fun LegendSheet(onDismiss: () -> Unit) {
 
     ModalBottomSheet(onDismissRequest = onDismiss) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp).padding(bottom = 24.dp)) {
-            Text(text("Legend"), style = MaterialTheme.typography.titleLarge)
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 LegendCountry.entries.forEach {
                     FilterChip(
@@ -149,20 +153,28 @@ fun LegendSheet(onDismiss: () -> Unit) {
             )
             LazyColumn(Modifier.heightIn(max = 620.dp)) {
                 filtered.forEach { section ->
-                    item { Text(text(section.title), modifier = Modifier.padding(top = 16.dp, bottom = 4.dp)) }
-                    items(section.entries, key = LegendEntry::drawable) { entry ->
-                        ListItem(
-                            leadingContent = {
-                                Image(
-                                    painterResource(entry.drawable),
-                                    contentDescription = null,
-                                    contentScale = ContentScale.Fit,
-                                    modifier = Modifier.width(64.dp).heightIn(min = 36.dp, max = 52.dp),
+                    item {
+                        Text(text(section.title), modifier = Modifier.padding(top = 16.dp, bottom = 4.dp))
+                        Column(
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(16.dp)),
+                        ) {
+                            section.entries.forEach { entry ->
+                                ListItem(
+                                    leadingContent = {
+                                        Image(
+                                            painterResource(entry.drawable),
+                                            contentDescription = null,
+                                            contentScale = ContentScale.Fit,
+                                            modifier = Modifier.width(64.dp).heightIn(min = 36.dp, max = 52.dp),
+                                        )
+                                    },
+                                    headlineContent = { Text(text(entry.title)) },
+                                    supportingContent = { Text(entry.nativeName) },
                                 )
-                            },
-                            headlineContent = { Text(text(entry.title)) },
-                            supportingContent = { Text(entry.nativeName) },
-                        )
+                            }
+                        }
                     }
                 }
                 if (query.isBlank()) {
@@ -178,16 +190,19 @@ private fun SlopeLegend(country: LegendCountry, text: (String) -> String) {
     Column(Modifier.padding(vertical = 16.dp)) {
         Text(text("Steepness"), style = MaterialTheme.typography.titleMedium)
         listOf(
-            0xFFFFFF00 to "30–35°",
-            0xFFFFAA00 to "35–40°",
-            0xFFFF5500 to "40–45°",
-            0xFFFF0000 to "45–50°",
-            0xFF730000 to "50° and steeper",
+            Color(0xFFFFFF00) to "30–35°",
+            Color(0xFFFFAA00) to "35–40°",
+            Color(0xFFFF5500) to "40–45°",
+            Color(0xFFFF0000) to "45–50°",
+            Color(0xFF730000) to "50° and steeper",
         ).forEach { (colour, label) ->
             Row(Modifier.padding(vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                androidx.compose.foundation.Canvas(Modifier.width(40.dp).heightIn(min = 20.dp)) {
-                    drawRect(androidx.compose.ui.graphics.Color(colour))
-                }
+                Box(
+                    Modifier
+                        .size(width = 40.dp, height = 20.dp)
+                        .clip(RoundedCornerShape(4.dp))
+                        .background(colour),
+                )
                 Text(text(label))
             }
         }
