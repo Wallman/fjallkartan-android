@@ -854,7 +854,9 @@ private fun MapControlButton(
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     Column(
         modifier = if (isLandscape) {
-            Modifier.padding(end = 10.dp)
+            // Labeled buttons already have a wider 64dp column, so a smaller end padding
+            // keeps their spacing visually consistent with the unlabeled buttons.
+            Modifier.padding(end = if (label != null) 6.dp else 10.dp)
         } else {
             Modifier.padding(bottom = if (label != null) 6.dp else 10.dp)
         },
