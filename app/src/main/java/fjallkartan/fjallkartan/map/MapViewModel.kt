@@ -29,6 +29,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.maplibre.android.geometry.LatLngBounds
+import kotlin.time.Duration.Companion.milliseconds
 
 data class SearchSelection(val place: PlaceResult? = null, val token: Int = 0)
 
@@ -182,7 +183,7 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
             return
         }
         searchJob = viewModelScope.launch {
-            delay(150)
+            delay(150.milliseconds)
             _searchResults.value = withContext(Dispatchers.IO) { placeSearch.search(query) }
         }
     }
