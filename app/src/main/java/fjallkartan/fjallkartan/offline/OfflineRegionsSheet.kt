@@ -3,6 +3,7 @@ package fjallkartan.fjallkartan.offline
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -23,6 +24,7 @@ import androidx.compose.material3.ListItem
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,10 +48,11 @@ fun OfflineRegionsSheet(
     onDelete: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         val context = LocalContext.current
         var pendingDeleteId by remember { mutableStateOf<String?>(null) }
-        LazyColumn(Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
+        LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(0.9f).padding(bottom = 28.dp)) {
             item { Text("Offline maps", modifier = Modifier.padding(16.dp)) }
             if (regions.isEmpty()) {
                 item { Text("No downloaded areas yet.", modifier = Modifier.padding(16.dp)) }

@@ -129,9 +129,10 @@ fun SavedRoutesSheet(
     onDismiss: () -> Unit,
 ) {
     var renameTarget by remember { mutableStateOf<SavedRoute?>(null) }
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
 
-    ModalBottomSheet(onDismissRequest = onDismiss) {
-        LazyColumn(Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
+        LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(0.9f).padding(bottom = 28.dp)) {
             item {
                 Text("Saved routes", modifier = Modifier.padding(16.dp))
             }

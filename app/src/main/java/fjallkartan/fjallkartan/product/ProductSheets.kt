@@ -126,7 +126,8 @@ fun AboutSheet(
     onShowGuide: () -> Unit,
     onShowDebug: () -> Unit,
 ) {
-    ModalBottomSheet(onDismissRequest = onDismiss) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
             Text(localText("About"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
             LinkRow("©Kartverket", "https://www.kartverket.no/")
