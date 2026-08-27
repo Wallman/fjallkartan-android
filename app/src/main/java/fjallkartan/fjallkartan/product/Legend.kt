@@ -34,8 +34,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -57,12 +55,6 @@ import fjallkartan.fjallkartan.R
 /// background behind every symbol chip so line colours read the same way
 /// they do on the map itself.
 private val LegendPaper = Color(0xFFFAF7F0)
-
-/// Unmodified Material3 color scheme, used only within the legend sheet so its
-/// surfaces, dividers and containers stay the plain framework defaults instead
-/// of the app's custom green/orange brand theme.
-private val PlainLightColors = lightColorScheme()
-private val PlainDarkColors = darkColorScheme()
 
 enum class LegendCountry { Sweden, Norway }
 
