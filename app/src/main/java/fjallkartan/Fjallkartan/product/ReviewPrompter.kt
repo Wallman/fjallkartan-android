@@ -1,6 +1,7 @@
 package fjallkartan.fjallkartan.product
 
 import android.content.Context
+import androidx.core.content.edit
 import fjallkartan.fjallkartan.BuildConfig
 
 class ReviewPrompter(
@@ -11,30 +12,26 @@ class ReviewPrompter(
     private val preferences = context.getSharedPreferences("review-prompter", Context.MODE_PRIVATE)
 
     fun noteAppOpen() {
-        preferences.edit().putInt(APP_OPENS, preferences.getInt(APP_OPENS, 0) + 1).apply()
+        preferences.edit { putInt(APP_OPENS, preferences.getInt(APP_OPENS, 0) + 1) }
     }
 
     fun recordMeasurement(meters: Double): Boolean {
         if (meters < MINIMUM_MEASUREMENT_METERS) return false
-        preferences.edit()
-            .putInt(MEASUREMENTS, preferences.getInt(MEASUREMENTS, 0) + 1)
-            .apply()
+        preferences.edit { putInt(MEASUREMENTS, preferences.getInt(MEASUREMENTS, 0) + 1) }
         return isEligible()
     }
 
     fun recordOfflineCompletion(): Boolean {
-        preferences.edit()
-            .putInt(DOWNLOADS, preferences.getInt(DOWNLOADS, 0) + 1)
-            .apply()
+        preferences.edit { putInt(DOWNLOADS, preferences.getInt(DOWNLOADS, 0) + 1) }
         return isEligible()
     }
 
     fun consume(): Boolean {
         if (!isEligible()) return false
-        preferences.edit()
-            .putString(PROMPTED_VERSION, version)
-            .putLong(PROMPTED_AT, now())
-            .apply()
+        preferences.edit {
+            putString(PROMPTED_VERSION, version)
+            putLong(PROMPTED_AT, now())
+        }
         return true
     }
 

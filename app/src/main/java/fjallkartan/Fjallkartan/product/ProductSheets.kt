@@ -171,7 +171,7 @@ fun DebugSheet(
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
-    var message by remember { mutableStateOf<String?>(null) }
+    var statusMessage by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(localText("Debug tools")) },
@@ -186,13 +186,13 @@ fun DebugSheet(
                 TextButton(onClick = {
                     OfflineManager.getInstance(context).clearAmbientCache(
                         object : OfflineManager.FileSourceCallback {
-                            override fun onSuccess() { message = "Map cache cleared." }
-                            override fun onError(error: String) { message = error }
+                            override fun onSuccess() { statusMessage = "Map cache cleared." }
+                            override fun onError(message: String) { statusMessage = message }
                         },
                     )
                 }) { Text(localText("Clear map cache")) }
                 TextButton(onClick = { shareDiagnostics(context) }) { Text(localText("Share diagnostics")) }
-                message?.let { Text(it) }
+                statusMessage?.let { Text(it) }
             }
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(localText("Done")) } },

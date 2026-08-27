@@ -3,6 +3,7 @@ package fjallkartan.fjallkartan.map
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
+import androidx.core.graphics.createBitmap
 import fjallkartan.fjallkartan.settings.RemoteSettings
 import java.io.BufferedInputStream
 import java.io.ByteArrayOutputStream
@@ -258,7 +259,7 @@ object KartverketTileProxy {
     }
 
     private val TRANSPARENT_PNG by lazy {
-        val bitmap = Bitmap.createBitmap(256, 256, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(256, 256)
         val output = ByteArrayOutputStream()
         bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
         bitmap.recycle()

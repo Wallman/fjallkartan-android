@@ -3,6 +3,7 @@ package fjallkartan.fjallkartan.settings
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
+import androidx.core.content.edit
 import fjallkartan.fjallkartan.map.TileServer
 import java.net.URI
 import java.util.concurrent.TimeUnit
@@ -106,10 +107,10 @@ object RemoteSettings {
                             return
                         }
                         settings = decoded
-                        preferences.edit()
-                            .putString(KEY_PAYLOAD, payload)
-                            .putLong(KEY_FETCHED_AT, System.currentTimeMillis())
-                            .apply()
+                        preferences.edit {
+                            putString(KEY_PAYLOAD, payload)
+                            putLong(KEY_FETCHED_AT, System.currentTimeMillis())
+                        }
                     }
                 }
             },

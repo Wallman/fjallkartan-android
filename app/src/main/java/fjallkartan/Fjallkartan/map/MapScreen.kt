@@ -18,6 +18,7 @@ import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.core.graphics.createBitmap
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -46,8 +47,8 @@ import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.Inbox
-import androidx.compose.material.icons.filled.ListAlt
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
@@ -453,7 +454,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 add(
                     ToolButtonSpec(true) {
                         MapControlButton(onClick = { showLegend = true }, label = "Symbols") {
-                            Icon(Icons.Default.ListAlt, contentDescription = "Legend")
+                            Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = "Legend")
                         }
                     },
                 )
@@ -1114,10 +1115,9 @@ private class MapHolder {
         }
         val width = (textPaint.measureText(label) + 14 * density)
         val height = 24 * density
-        val bitmap = Bitmap.createBitmap(
+        val bitmap = createBitmap(
             width.toInt().coerceAtLeast(1),
             height.toInt().coerceAtLeast(1),
-            Bitmap.Config.ARGB_8888,
         )
         val canvas = android.graphics.Canvas(bitmap)
         val circlePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
@@ -1217,7 +1217,7 @@ private class MapHolder {
         fun pixels(dp: Float) = dp * density
         val size = pixels(36f).toInt()
         val center = pixels(18f)
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(size, size)
         val canvas = android.graphics.Canvas(bitmap)
 
         canvas.drawCircle(
@@ -1286,7 +1286,7 @@ private class MapHolder {
         val density = context.resources.displayMetrics.density
         fun pixels(dp: Float) = dp * density
         val size = pixels(36f).toInt()
-        val bitmap = Bitmap.createBitmap(size, size, Bitmap.Config.ARGB_8888)
+        val bitmap = createBitmap(size, size)
         val canvas = android.graphics.Canvas(bitmap)
         val center = pixels(18f)
 

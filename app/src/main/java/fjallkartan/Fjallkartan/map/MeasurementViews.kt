@@ -40,12 +40,17 @@ internal class MeasureCaptureView(context: Context) : View(context) {
     var map: MapLibreMap? = null
     var mapView: MapView? = null
     var anchor: GeoCoordinate? = null
+        set(value) {
+            field = value
+            anchorLatLng = value?.let { LatLng(it.latitude, it.longitude) }
+        }
     var onStrokeFinished: (List<GeoCoordinate>) -> Unit = {}
     var onPreviewChanged: (Double?) -> Unit = {}
 
     private val density = resources.displayMetrics.density
     private val points = mutableListOf<ScreenPoint>()
     private var manipulatingMap = false
+    private var anchorLatLng: LatLng? = null
 
     private val casingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
@@ -61,6 +66,7 @@ internal class MeasureCaptureView(context: Context) : View(context) {
         strokeCap = Paint.Cap.ROUND
         strokeJoin = Paint.Join.ROUND
     }
+    private val drawPath = Path()
 
     init {
         visibility = GONE
@@ -131,17 +137,17 @@ internal class MeasureCaptureView(context: Context) : View(context) {
     override fun onDraw(canvas: Canvas) {
         super.onDraw(canvas)
         if (points.isEmpty()) return
-        val path = Path()
-        val start = anchor?.let {
-            map?.projection?.toScreenLocation(LatLng(it.latitude, it.longitude))
-        }
+        val path = drawPath.apply { rewind() }
+        val start = anchorLatLng?.let { map?.projection?.toScreenLocation(it) }
         if (start != null) {
             path.moveTo(start.x, start.y)
             path.lineTo(points.first().x.toFloat(), points.first().y.toFloat())
         } else {
             path.moveTo(points.first().x.toFloat(), points.first().y.toFloat())
         }
-        points.drop(1).forEach { path.lineTo(it.x.toFloat(), it.y.toFloat()) }
+        for (i in 1 until points.size) {
+            path.lineTo(points[i].x.toFloat(), points[i].y.toFloat())
+        }
         canvas.drawPath(path, casingPaint)
         canvas.drawPath(path, routePaint)
     }

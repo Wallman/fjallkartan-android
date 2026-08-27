@@ -1,6 +1,7 @@
 package fjallkartan.fjallkartan.offline
 
 import android.content.Context
+import androidx.core.content.edit
 import fjallkartan.fjallkartan.elevation.ElevationService
 import fjallkartan.fjallkartan.map.MapStyle
 import fjallkartan.fjallkartan.map.TilePyramid
@@ -164,7 +165,7 @@ class OfflineRegionRepository private constructor(context: Context) {
                 regionsByMetadataId.remove(id)
                 statuses.remove(id)
                 errors.remove(id)
-                preferences.edit().remove(pausedKey(id)).apply()
+                preferences.edit { remove(pausedKey(id)) }
                 elevationKeys.remove(id)
                 elevationProgress.remove(id)
                 rebuildSummaries()
@@ -316,7 +317,7 @@ class OfflineRegionRepository private constructor(context: Context) {
     private fun isPaused(id: String): Boolean = preferences.getBoolean(pausedKey(id), false)
 
     private fun setPaused(id: String, paused: Boolean) {
-        preferences.edit().putBoolean(pausedKey(id), paused).apply()
+        preferences.edit { putBoolean(pausedKey(id), paused) }
     }
 
     private fun pausedKey(id: String): String = "paused:$id"

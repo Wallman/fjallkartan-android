@@ -35,7 +35,7 @@ import fjallkartan.fjallkartan.R
 enum class LegendCountry { Sweden, Norway }
 
 data class LegendEntry(
-    @DrawableRes val drawable: Int,
+    @param:DrawableRes val drawable: Int,
     val title: String,
     val nativeName: String,
 )
