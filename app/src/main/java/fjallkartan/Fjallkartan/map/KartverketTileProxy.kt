@@ -32,7 +32,7 @@ object KartverketTileProxy {
         .dispatcher(
             Dispatcher().apply {
                 maxRequests = 64
-                maxRequestsPerHost = 32
+                maxRequestsPerHost = 16
             },
         )
         .callTimeout(15, TimeUnit.SECONDS)

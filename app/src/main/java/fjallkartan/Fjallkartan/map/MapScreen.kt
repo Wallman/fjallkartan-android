@@ -8,6 +8,8 @@ import android.graphics.Paint
 import android.graphics.drawable.GradientDrawable
 import android.os.Bundle
 import android.os.Build
+import android.os.StatFs
+import android.text.format.Formatter
 import android.view.Gravity
 import android.view.ViewGroup
 import android.widget.ImageButton
@@ -185,6 +187,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val knownCompletedRegions = remember { mutableSetOf<String>() }
     var offlineRegionsInitialized by remember { mutableStateOf(false) }
     var pendingOfflineBounds by remember { mutableStateOf<LatLngBounds?>(null) }
+    var offlinePreviewBounds by remember { mutableStateOf<LatLngBounds?>(null) }
     val mapState = remember { MapHolder() }
 
     val locationPermission = rememberLauncherForActivityResult(
@@ -265,6 +268,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         }
     }
 
+    LaunchedEffect(isPickingOffline) {
+        offlinePreviewBounds = if (isPickingOffline) mapState.currentOfflineBounds() else null
+    }
     LaunchedEffect(slopeVisible) {
         mapState.setSlopeVisible(slopeVisible)
     }
@@ -304,6 +310,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             onCameraChanged = { camera, updatedMetersPerPixel ->
                 zoom = camera.zoom
                 metersPerPixel = updatedMetersPerPixel
+                if (isPickingOffline) offlinePreviewBounds = mapState.currentOfflineBounds()
             },
         )
 
@@ -541,13 +548,50 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         }
 
         if (isPickingOffline) {
-            Button(
-                onClick = { pendingOfflineBounds = mapState.currentOfflineBounds() },
+            val estimatedBytes = offlinePreviewBounds?.let { bounds ->
+                TilePyramid.estimateBytes(
+                    bounds.latitudeNorth,
+                    bounds.longitudeEast,
+                    bounds.latitudeSouth,
+                    bounds.longitudeWest,
+                )
+            } ?: 0L
+            val exceedsGuard = estimatedBytes > TilePyramid.MAX_DOWNLOAD_BYTES
+            val insufficientStorage = !exceedsGuard &&
+                estimatedBytes > StatFs(context.filesDir.path).availableBytes
+            Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
                     .padding(bottom = 74.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("Download current view")
+                Text(
+                    "\u2248 ${Formatter.formatShortFileSize(context, estimatedBytes)}",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                if (exceedsGuard) {
+                    Text(
+                        "This area is too large to download. Zoom in and try a smaller region.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Red,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    )
+                } else if (insufficientStorage) {
+                    Text(
+                        "Not enough free space on this device to download this area.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color.Red,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.padding(horizontal = 24.dp, vertical = 4.dp),
+                    )
+                }
+                Button(
+                    onClick = { pendingOfflineBounds = mapState.currentOfflineBounds() },
+                    enabled = !exceedsGuard && !insufficientStorage,
+                ) {
+                    Text("Download this area")
+                }
             }
         }
     }

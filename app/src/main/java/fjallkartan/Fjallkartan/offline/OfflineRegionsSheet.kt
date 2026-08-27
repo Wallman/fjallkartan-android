@@ -4,16 +4,17 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
@@ -47,15 +48,9 @@ fun OfflineRegionsSheet(
                                 DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
                                     .format(Date.from(region.createdAt)),
                             )
-                            val progress = if (region.requiredResources > 0) {
-                                region.completedResources.toFloat() / region.requiredResources
-                            } else {
-                                0f
+                            if (region.status == OfflineStatus.Downloading) {
+                                CircularProgressIndicator(modifier = Modifier.size(16.dp))
                             }
-                            LinearProgressIndicator(
-                                progress = { progress.coerceIn(0f, 1f) },
-                                modifier = Modifier.fillMaxWidth(),
-                            )
                             Text(statusText(region))
                         }
                     },

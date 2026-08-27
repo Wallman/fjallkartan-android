@@ -197,6 +197,16 @@ class OfflineRegionRepository private constructor(context: Context) {
             }
 
             override fun onError(error: OfflineRegionError) {
+                // MapLibre reports every failed tile fetch here, including
+                // transient connection/server errors (e.g. HTTP 429/503) that
+                // it retries internally without any help from us. Surfacing
+                // those as a blocking dialog would interrupt the user for
+                // failures that resolve themselves as the download continues.
+                if (error.reason == OfflineRegionError.REASON_CONNECTION ||
+                    error.reason == OfflineRegionError.REASON_SERVER
+                ) {
+                    return
+                }
                 _lastError.value = error.message
             }
 
