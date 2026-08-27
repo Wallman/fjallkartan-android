@@ -18,6 +18,7 @@ fastlane/README.md
 fastlane/report.xml
 fastlane/test_output/
 fastlane/metadata/android/*/images/phoneScreenshots/
+fastlane/metadata/android/*/images/images/
 .bundle/
 vendor/bundle/
 /.envrc

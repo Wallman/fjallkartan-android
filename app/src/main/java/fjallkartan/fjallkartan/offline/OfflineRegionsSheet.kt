@@ -84,7 +84,7 @@ fun OfflineRegionsSheet(
                                 DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT)
                                     .format(Date.from(region.createdAt)),
                             )
-                            if (region.status == OfflineStatus.Complete && region.completedBytes > 0) {
+                            if (region.completedBytes > 0) {
                                 Text(
                                     " • ${Formatter.formatShortFileSize(context, region.completedBytes)}",
                                 )
