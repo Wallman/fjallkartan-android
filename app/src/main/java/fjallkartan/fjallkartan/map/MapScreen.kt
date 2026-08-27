@@ -228,10 +228,6 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             mapState.setTracking(true)
         }
     }
-    val notificationPermission = rememberLauncherForActivityResult(
-        ActivityResultContracts.RequestPermission(),
-    ) {}
-
     LaunchedEffect(Unit) {
         reviewPrompter.noteAppOpen()
     }
@@ -486,9 +482,6 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                                     isPickingOffline = true
                                     if (guideTips.take("offline")) {
                                         guideTip = "Move and zoom until the dashed box covers your area."
-                                    }
-                                    if (Build.VERSION.SDK_INT >= 33) {
-                                        notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
                                     }
                                 }
                             },
