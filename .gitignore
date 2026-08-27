@@ -20,3 +20,5 @@ fastlane/test_output/
 fastlane/metadata/android/*/images/phoneScreenshots/
 .bundle/
 vendor/bundle/
+/.envrc
+/fjallkartan-fastlane-service-account.json
