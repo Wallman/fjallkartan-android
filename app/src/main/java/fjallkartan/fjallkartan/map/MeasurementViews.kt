@@ -60,7 +60,7 @@ internal class MeasureCaptureView(context: Context) : View(context) {
         strokeJoin = Paint.Join.ROUND
     }
     private val routePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-        color = Color.rgb(11, 110, 79)
+        color = Color.rgb(255, 149, 0)
         style = Paint.Style.STROKE
         strokeWidth = 4 * density
         strokeCap = Paint.Cap.ROUND

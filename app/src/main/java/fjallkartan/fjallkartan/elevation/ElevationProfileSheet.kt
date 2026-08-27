@@ -41,7 +41,7 @@ import kotlin.math.floor
 import kotlin.math.pow
 import kotlin.math.roundToInt
 
-private val ElevationOrange = Color(0xFFF28C28)
+private val ElevationOrange = Color(0xFFFF9500)
 
 @Composable
 @OptIn(ExperimentalMaterial3Api::class)

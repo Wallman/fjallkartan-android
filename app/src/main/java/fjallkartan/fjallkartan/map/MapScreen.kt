@@ -39,9 +39,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.statusBars
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -49,6 +51,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Bookmark
@@ -64,11 +67,10 @@ import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.WarningAmber
+import androidx.compose.material.icons.outlined.ArrowCircleDown
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Info
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -87,6 +89,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -388,14 +391,14 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 Icon(
                     Icons.Default.MyLocation,
                     contentDescription = "Track my location",
-                    tint = if (trackingEnabled) Color(0xFFF28C28) else Color.Black,
+                    tint = if (trackingEnabled) Color(0xFFFF9500) else Color.Black,
                 )
             }
             MapControlButton(onClick = viewModel::toggleMeasuring) {
                 Icon(
                     Icons.Default.Straighten,
                     contentDescription = "Measure distance",
-                    tint = if (measurement.isMeasuring) Color(0xFFF28C28) else Color.Black,
+                    tint = if (measurement.isMeasuring) Color(0xFFFF9500) else Color.Black,
                 )
             }
             val measurementButtons = buildList<@Composable () -> Unit> {
@@ -490,7 +493,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                             Icon(
                                 Icons.Outlined.Download,
                                 contentDescription = "Download current area",
-                                tint = if (isPickingOffline) Color(0xFFF28C28) else Color.Black,
+                                tint = if (isPickingOffline) Color(0xFFFF9500) else Color.Black,
                             )
                         }
                     },
@@ -519,7 +522,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                             Icon(
                                 painterResource(R.drawable.ic_slope),
                                 contentDescription = "Slope",
-                                tint = if (slopeVisible) Color(0xFFF28C28) else Color.Black,
+                                tint = if (slopeVisible) Color(0xFFFF9500) else Color.Black,
                             )
                         }
                     },
@@ -586,7 +589,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                                 Icon(
                                     Icons.Default.WarningAmber,
                                     contentDescription = "Elevation data incomplete for part of this route",
-                                    tint = Color(0xFFF28C28),
+                                    tint = Color(0xFFFF9500),
                                     modifier = Modifier.size(13.dp),
                                 )
                             }
@@ -656,16 +659,21 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             val exceedsGuard = estimatedBytes > TilePyramid.MAX_DOWNLOAD_BYTES
             val insufficientStorage = !exceedsGuard &&
                 estimatedBytes > StatFs(context.filesDir.path).availableBytes
+            val downloadDisabled = exceedsGuard || insufficientStorage
             Column(
                 modifier = Modifier
                     .align(Alignment.BottomCenter)
-                    .padding(bottom = 74.dp),
+                    .padding(bottom = 74.dp, start = 16.dp, end = 16.dp)
+                    .widthIn(max = 300.dp)
+                    .background(Color.White.copy(alpha = 0.9f), RoundedCornerShape(14.dp))
+                    .padding(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    "Estimated size: \u2248 ${Formatter.formatShortFileSize(context, estimatedBytes)}",
+                    "\u2248 ${Formatter.formatShortFileSize(context, estimatedBytes)}",
                     style = MaterialTheme.typography.bodyMedium,
-                    fontWeight = FontWeight.Medium,
+                    color = Color.Gray,
                 )
                 if (exceedsGuard) {
                     Text(
@@ -673,9 +681,6 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Red,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .widthIn(max = 260.dp)
-                            .padding(horizontal = 24.dp, vertical = 4.dp),
                     )
                 } else if (insufficientStorage) {
                     Text(
@@ -683,20 +688,35 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Red,
                         textAlign = TextAlign.Center,
-                        modifier = Modifier
-                            .widthIn(max = 260.dp)
-                            .padding(horizontal = 24.dp, vertical = 4.dp),
                     )
                 }
-                Button(
-                    onClick = { pendingOfflineBounds = mapState.currentOfflineBounds() },
-                    enabled = !exceedsGuard && !insufficientStorage,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFF28C28),
-                        contentColor = Color.White,
-                    ),
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(40.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (downloadDisabled) Color.Transparent else Color(0xFFFF9500).copy(alpha = 0.15f),
+                        )
+                        .clickable(enabled = !downloadDisabled) {
+                            pendingOfflineBounds = mapState.currentOfflineBounds()
+                        },
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Download this area")
+                    Icon(
+                        Icons.Outlined.ArrowCircleDown,
+                        contentDescription = null,
+                        tint = if (downloadDisabled) Color.Gray else Color(0xFFFF9500),
+                        modifier = Modifier.size(18.dp),
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        "Download this area",
+                        color = if (downloadDisabled) Color.Gray else Color(0xFFFF9500),
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 15.sp,
+                    )
                 }
             }
         }
@@ -1270,7 +1290,7 @@ private class MapHolder {
             style = Paint.Style.FILL
         }
         val strokePaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.rgb(11, 110, 79)
+            color = android.graphics.Color.rgb(255, 149, 0)
             style = Paint.Style.STROKE
             strokeWidth = 2 * density
         }
@@ -1304,7 +1324,7 @@ private class MapHolder {
         )
         style.addLayer(
             LineLayer("route-line", ROUTE_SOURCE).withProperties(
-                lineColor(android.graphics.Color.rgb(11, 110, 79)),
+                lineColor(android.graphics.Color.rgb(255, 149, 0)),
                 lineWidth(4f),
                 lineCap(Property.LINE_CAP_ROUND),
                 lineJoin(Property.LINE_JOIN_ROUND),
@@ -1314,14 +1334,14 @@ private class MapHolder {
             CircleLayer("route-start-layer", START_SOURCE).withProperties(
                 circleRadius(6f),
                 circleColor(android.graphics.Color.WHITE),
-                circleStrokeColor(android.graphics.Color.rgb(11, 110, 79)),
+                circleStrokeColor(android.graphics.Color.rgb(255, 149, 0)),
                 circleStrokeWidth(2.5f),
             ),
         )
         style.addLayer(
             CircleLayer("route-end-layer", END_SOURCE).withProperties(
                 circleRadius(6f),
-                circleColor(android.graphics.Color.rgb(11, 110, 79)),
+                circleColor(android.graphics.Color.rgb(255, 149, 0)),
                 circleStrokeColor(android.graphics.Color.WHITE),
                 circleStrokeWidth(2.5f),
             ),
