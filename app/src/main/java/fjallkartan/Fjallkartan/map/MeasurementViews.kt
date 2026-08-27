@@ -6,7 +6,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.Point
 import android.graphics.PointF
 import android.view.MotionEvent
 import android.view.View
@@ -16,8 +15,6 @@ import fjallkartan.fjallkartan.measurement.GeoCoordinate
 import fjallkartan.fjallkartan.measurement.LineSimplifier
 import fjallkartan.fjallkartan.measurement.ScreenPoint
 import kotlin.math.hypot
-import kotlin.math.ln
-import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
@@ -35,11 +32,13 @@ internal class MapContainerView(
 
     fun bindMap(map: MapLibreMap) {
         captureView.map = map
+        captureView.mapView = mapView
     }
 }
 
 internal class MeasureCaptureView(context: Context) : View(context) {
     var map: MapLibreMap? = null
+    var mapView: MapView? = null
     var anchor: GeoCoordinate? = null
     var onStrokeFinished: (List<GeoCoordinate>) -> Unit = {}
     var onPreviewChanged: (Double?) -> Unit = {}
@@ -47,8 +46,6 @@ internal class MeasureCaptureView(context: Context) : View(context) {
     private val density = resources.displayMetrics.density
     private val points = mutableListOf<ScreenPoint>()
     private var manipulatingMap = false
-    private var previousMidpoint = PointF()
-    private var previousDistance = 0f
 
     private val casingPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
         color = Color.WHITE
@@ -76,7 +73,12 @@ internal class MeasureCaptureView(context: Context) : View(context) {
     }
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
-        val readyMap = map ?: return true
+        if (map == null) return true
+        // Delegate any multi-touch handling to MapLibre's own gesture detector so pan,
+        // pinch-zoom and rotation behave exactly as they do outside of measuring mode.
+        // A hand-rolled reimplementation based on raw per-frame midpoint/distance deltas
+        // was jittery and let pinch gestures visibly drag the map.
+        mapView?.onTouchEvent(event)
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
                 manipulatingMap = false
@@ -89,7 +91,6 @@ internal class MeasureCaptureView(context: Context) : View(context) {
                 manipulatingMap = true
                 points.clear()
                 onPreviewChanged(null)
-                rememberTwoFingerGesture(event)
                 invalidate()
             }
             MotionEvent.ACTION_MOVE -> {
@@ -98,25 +99,7 @@ internal class MeasureCaptureView(context: Context) : View(context) {
                         manipulatingMap = true
                         points.clear()
                         onPreviewChanged(null)
-                        rememberTwoFingerGesture(event)
-                    } else {
-                        val midpoint = midpoint(event)
-                        val distance = pointerDistance(event)
-                        readyMap.scrollBy(
-                            previousMidpoint.x - midpoint.x,
-                            previousMidpoint.y - midpoint.y,
-                        )
-                        if (previousDistance > 0 && distance > 0) {
-                            val zoomDelta = ln((distance / previousDistance).toDouble()) / ln(2.0)
-                            readyMap.moveCamera(
-                                CameraUpdateFactory.zoomBy(
-                                    zoomDelta,
-                                    Point(midpoint.x.toInt(), midpoint.y.toInt()),
-                                ),
-                            )
-                        }
-                        previousMidpoint = midpoint
-                        previousDistance = distance
+                        invalidate()
                     }
                 } else if (!manipulatingMap) {
                     val last = points.lastOrNull()
@@ -190,21 +173,5 @@ internal class MeasureCaptureView(context: Context) : View(context) {
         manipulatingMap = false
         onPreviewChanged(null)
         invalidate()
-    }
-
-    private fun rememberTwoFingerGesture(event: MotionEvent) {
-        previousMidpoint = midpoint(event)
-        previousDistance = pointerDistance(event)
-    }
-
-    private fun midpoint(event: MotionEvent): PointF {
-        return PointF(
-            (event.getX(0) + event.getX(1)) / 2,
-            (event.getY(0) + event.getY(1)) / 2,
-        )
-    }
-
-    private fun pointerDistance(event: MotionEvent): Float {
-        return hypot(event.getX(1) - event.getX(0), event.getY(1) - event.getY(0))
     }
 }

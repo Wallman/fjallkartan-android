@@ -162,7 +162,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val offlineRegions by viewModel.offlineRegions.collectAsStateWithLifecycle()
     val offlineError by viewModel.offlineError.collectAsStateWithLifecycle()
     val context = LocalContext.current
-    var zoom by remember { mutableDoubleStateOf(3.4) }
+    var zoom by remember { mutableDoubleStateOf(3.5) }
     var metersPerPixel by remember { mutableDoubleStateOf(0.0) }
     var showElevation by remember { mutableStateOf(false) }
     var showSearch by remember { mutableStateOf(false) }
@@ -251,7 +251,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             !showSearch && !showSavedRoutes && !showOfflineRegions && !showElevation &&
             !showTools && !showLegend && !showAbout && !showGuide
         ) {
-            delay(3_000)
+            delay(3_000.milliseconds)
             if (reviewPrompter.consume()) {
                 val activity = context as? Activity
                 if (activity != null) {
@@ -895,7 +895,7 @@ private class MapHolder {
                     .build(),
             )
             readyMap.cameraPosition = CameraPosition.Builder()
-                .target(LatLng(67.0, 16.0))
+                .target(LatLng(65.0, 16.5))
                 .zoom(3.4)
                 .build()
             fun reportCameraPosition() {
@@ -960,9 +960,13 @@ private class MapHolder {
     fun setMeasuring(enabled: Boolean) {
         measuring = enabled
         map?.uiSettings?.apply {
+            // Single-finger gestures must stay disabled while measuring so they don't
+            // fight with the capture view's own line-drawing touch handling. Pinch-zoom
+            // and two-finger rotate are safe to keep native since they're only ever
+            // triggered with 2+ pointers, distinct from the single-finger draw gesture.
             isScrollGesturesEnabled = !enabled
-            isZoomGesturesEnabled = !enabled
-            isRotateGesturesEnabled = !enabled
+            isZoomGesturesEnabled = true
+            isRotateGesturesEnabled = true
             isDoubleTapGesturesEnabled = !enabled
             isQuickZoomGesturesEnabled = !enabled
         }
