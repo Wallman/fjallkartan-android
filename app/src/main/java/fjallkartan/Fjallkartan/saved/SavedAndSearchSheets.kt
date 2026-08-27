@@ -133,19 +133,6 @@ fun SavedRoutesSheet(
     ModalBottomSheet(onDismissRequest = onDismiss) {
         LazyColumn(Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
             item {
-                Text("Suggested routes", modifier = Modifier.padding(16.dp))
-            }
-            items(featured, key = FeaturedRoute::id) { featuredRoute ->
-                ListItem(
-                    headlineContent = { Text(featuredRoute.name) },
-                    supportingContent = {
-                        Text("${featuredRoute.subtitle} • ${DistanceMeasurement.formatDistance(featuredRoute.route.meters)}")
-                    },
-                    modifier = Modifier.clickable { onLoad(featuredRoute.route) },
-                )
-            }
-            item {
-                HorizontalDivider()
                 Text("Saved routes", modifier = Modifier.padding(16.dp))
             }
             items(saved, key = SavedRoute::id) { route ->
@@ -163,6 +150,19 @@ fun SavedRoutesSheet(
                         }
                     },
                     modifier = Modifier.clickable { onLoad(route) },
+                )
+            }
+            item {
+                HorizontalDivider()
+                Text("Suggested routes", modifier = Modifier.padding(16.dp))
+            }
+            items(featured, key = FeaturedRoute::id) { featuredRoute ->
+                ListItem(
+                    headlineContent = { Text(featuredRoute.name) },
+                    supportingContent = {
+                        Text("${featuredRoute.subtitle} • ${DistanceMeasurement.formatDistance(featuredRoute.route.meters)}")
+                    },
+                    modifier = Modifier.clickable { onLoad(featuredRoute.route) },
                 )
             }
         }
