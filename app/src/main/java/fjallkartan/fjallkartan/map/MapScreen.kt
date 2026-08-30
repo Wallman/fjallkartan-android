@@ -6,17 +6,11 @@ import android.content.res.Configuration
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.Paint
-import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Bundle
 import android.os.StatFs
 import android.text.format.Formatter
 import android.view.Gravity
-import android.view.ViewGroup
-import android.widget.ImageButton
-import android.widget.ImageView
-import android.widget.LinearLayout
-import android.widget.TextView
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.graphics.createBitmap
@@ -157,6 +151,7 @@ import org.maplibre.android.style.layers.PropertyFactory.circleRadius
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeColor
 import org.maplibre.android.style.layers.PropertyFactory.circleStrokeWidth
 import org.maplibre.android.style.layers.PropertyFactory.iconAllowOverlap
+import org.maplibre.android.style.layers.PropertyFactory.iconAnchor
 import org.maplibre.android.style.layers.PropertyFactory.iconIgnorePlacement
 import org.maplibre.android.style.layers.PropertyFactory.iconImage
 import org.maplibre.android.style.layers.PropertyFactory.lineCap
@@ -1040,7 +1035,6 @@ private class MapHolder {
     private var routeMeters: Double = 0.0
     private var pins: List<SavedPin> = emptyList()
     private var pinMarkers: Map<java.util.UUID, Marker> = emptyMap()
-    private var searchMarker: Marker? = null
     private var selectedSearchPlace: PlaceResult? = null
     private var shownSearchPlaceToken = -1
     private var lastFitVersion = 0
@@ -1089,24 +1083,8 @@ private class MapHolder {
                 setCompassMargins(0, compassTopMargin, (12 * density).toInt(), 0)
                 isTiltGesturesEnabled = false
             }
-            readyMap.setInfoWindowAdapter { marker ->
-                val place = selectedSearchPlace
-                if (marker !== searchMarker || place == null) {
-                    null
-                } else {
-                    searchCallout(
-                        context = context,
-                        place = place,
-                        onSave = {
-                            removeSearchMarker()
-                            onSaveSearchPlace(place)
-                        },
-                        onDismiss = {
-                            removeSearchMarker()
-                            onDismissSearchPlace()
-                        },
-                    )
-                }
+            readyMap.addOnMapClickListener { latLng ->
+                handleSearchCalloutClick(readyMap, latLng, onSaveSearchPlace, onDismissSearchPlace)
             }
             readyMap.setLatLngBoundsForCameraTarget(
                 LatLngBounds.Builder()
@@ -1152,6 +1130,7 @@ private class MapHolder {
                 setMeasuring(measuring)
                 renderRoute()
                 syncPinMarkers()
+                updateSearchCalloutFeature()
             }
         }
         return container
@@ -1163,7 +1142,6 @@ private class MapHolder {
         container = null
         pins = emptyList()
         pinMarkers = emptyMap()
-        searchMarker = null
         selectedSearchPlace = null
         distanceMarkerIconCache = emptySet()
     }
@@ -1309,10 +1287,12 @@ private class MapHolder {
         val startSource = GeoJsonSource(START_SOURCE)
         val endSource = GeoJsonSource(END_SOURCE)
         val distanceMarkersSource = GeoJsonSource(DISTANCE_MARKERS_SOURCE)
+        val searchCalloutSource = GeoJsonSource(SEARCH_CALLOUT_SOURCE)
         style.addSource(routeSource)
         style.addSource(startSource)
         style.addSource(endSource)
         style.addSource(distanceMarkersSource)
+        style.addSource(searchCalloutSource)
         distanceMarkerIconCache = emptySet()
 
         style.addLayer(
@@ -1350,6 +1330,14 @@ private class MapHolder {
         style.addLayer(
             SymbolLayer("distance-markers-layer", DISTANCE_MARKERS_SOURCE).withProperties(
                 iconImage(Expression.get("icon")),
+                iconAllowOverlap(true),
+                iconIgnorePlacement(true),
+            ),
+        )
+        style.addLayer(
+            SymbolLayer(SEARCH_CALLOUT_LAYER, SEARCH_CALLOUT_SOURCE).withProperties(
+                iconImage(Expression.get("icon")),
+                iconAnchor(Property.ICON_ANCHOR_BOTTOM),
                 iconAllowOverlap(true),
                 iconIgnorePlacement(true),
             ),
@@ -1426,18 +1414,9 @@ private class MapHolder {
         val readyMap = map ?: return
         if (shownSearchPlaceToken == token) return
         shownSearchPlaceToken = token
-        searchMarker?.let(readyMap::removeMarker)
-        searchMarker = null
         selectedSearchPlace = place
+        updateSearchCalloutFeature()
         if (place != null) {
-            searchMarker = readyMap.addMarker(
-                MarkerOptions()
-                    .position(LatLng(place.coordinate.latitude, place.coordinate.longitude))
-                    .title(place.name)
-                    .snippet(place.subtitle.takeIf(String::isNotBlank))
-                    .icon(searchMarkerIcon(mapView?.context ?: return)),
-            )
-            searchMarker?.let(readyMap::selectMarker)
             readyMap.animateCamera(
                 CameraUpdateFactory.newLatLngZoom(
                     LatLng(place.coordinate.latitude, place.coordinate.longitude),
@@ -1448,122 +1427,225 @@ private class MapHolder {
         }
     }
 
-    private fun searchMarkerIcon(context: android.content.Context): org.maplibre.android.annotations.Icon {
-        val density = context.resources.displayMetrics.density
-        fun pixels(dp: Float) = dp * density
-        val size = pixels(36f).toInt()
-        val bitmap = createBitmap(size, size)
-        val canvas = android.graphics.Canvas(bitmap)
-        val center = pixels(18f)
-
-        val fill = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = android.graphics.Color.rgb(242, 140, 40)
-            setShadowLayer(pixels(2f), 0f, pixels(1f), 0x40000000)
+    private fun updateSearchCalloutFeature() {
+        val readyMap = map ?: return
+        val style = readyMap.style ?: return
+        val source = style.getSourceAs<GeoJsonSource>(SEARCH_CALLOUT_SOURCE) ?: return
+        val place = selectedSearchPlace
+        if (place == null) {
+            source.setGeoJson(FeatureCollection.fromFeatures(arrayOf()))
+            return
         }
-        canvas.drawCircle(center, center, pixels(14f), fill)
-        canvas.drawCircle(
-            center,
-            center,
-            pixels(14f),
+        val context = mapView?.context ?: return
+        style.addImage(SEARCH_CALLOUT_ICON_ID, searchCalloutBitmap(context, place))
+        val feature = Feature.fromGeometry(
+            Point.fromLngLat(place.coordinate.longitude, place.coordinate.latitude),
+        ).apply { addStringProperty("icon", SEARCH_CALLOUT_ICON_ID) }
+        source.setGeoJson(FeatureCollection.fromFeatures(arrayOf(feature)))
+    }
+
+    /**
+     * Handles a single tap on the map by hit-testing the save/close button regions of the
+     * rendered search callout bitmap, computed from its known on-screen anchor and layout.
+     * Returns true when the tap was consumed by the callout: a button tap performs its
+     * action, a tap on the bubble/pin body is absorbed to keep the callout open, and any
+     * other tap on the map dismisses the callout, matching native map callout behavior.
+     */
+    private fun handleSearchCalloutClick(
+        readyMap: MapLibreMap,
+        latLng: LatLng,
+        onSaveSearchPlace: (PlaceResult) -> Unit,
+        onDismissSearchPlace: () -> Unit,
+    ): Boolean {
+        val place = selectedSearchPlace ?: return false
+        val context = mapView?.context ?: return false
+        val density = context.resources.displayMetrics.density
+        fun pixels(dp: Int) = dp * density
+
+        val tapScreen = readyMap.projection.toScreenLocation(latLng)
+        val anchorScreen = readyMap.projection.toScreenLocation(
+            LatLng(place.coordinate.latitude, place.coordinate.longitude),
+        )
+        val bubbleWidth = pixels(SEARCH_CALLOUT_BUBBLE_WIDTH_DP)
+        val bubbleHeight = pixels(SEARCH_CALLOUT_BUBBLE_HEIGHT_DP)
+        val buttonSize = pixels(SEARCH_CALLOUT_BUTTON_SIZE_DP)
+        val pinSize = pixels(SEARCH_CALLOUT_PIN_SIZE_DP)
+        val gap = pixels(SEARCH_CALLOUT_GAP_DP)
+
+        // anchorScreen sits at the bottom-center of the pin badge (icon-anchor "bottom").
+        val bubbleLeft = anchorScreen.x - bubbleWidth / 2
+        val bubbleTop = anchorScreen.y - pinSize - gap - bubbleHeight
+        val localX = tapScreen.x - bubbleLeft
+        val localY = tapScreen.y - bubbleTop
+        val pinTop = bubbleHeight + gap
+        val pinLeft = (bubbleWidth - pinSize) / 2
+
+        if (localY in 0f..bubbleHeight) {
+            return when {
+                localX in 0f..buttonSize -> {
+                    clearSearchCallout()
+                    onSaveSearchPlace(place)
+                    true
+                }
+                localX in (bubbleWidth - buttonSize)..bubbleWidth -> {
+                    clearSearchCallout()
+                    onDismissSearchPlace()
+                    true
+                }
+                // Tap landed on the bubble body (name/subtitle area): keep the callout open.
+                else -> true
+            }
+        }
+        if (localY in pinTop..(pinTop + pinSize) && localX in pinLeft..(pinLeft + pinSize)) {
+            // Tap landed on the pin badge itself: keep the callout open.
+            return true
+        }
+
+        // Any other tap on the map is "outside" the callout, so dismiss it.
+        clearSearchCallout()
+        onDismissSearchPlace()
+        return true
+    }
+
+    private fun clearSearchCallout() {
+        selectedSearchPlace = null
+        updateSearchCalloutFeature()
+    }
+
+    private fun searchCalloutBitmap(context: android.content.Context, place: PlaceResult): Bitmap {
+        val density = context.resources.displayMetrics.density
+        fun pixels(dp: Number) = dp.toFloat() * density
+        val bubbleWidth = pixels(SEARCH_CALLOUT_BUBBLE_WIDTH_DP)
+        val bubbleHeight = pixels(SEARCH_CALLOUT_BUBBLE_HEIGHT_DP)
+        val buttonSize = pixels(SEARCH_CALLOUT_BUTTON_SIZE_DP)
+        val pinSize = pixels(SEARCH_CALLOUT_PIN_SIZE_DP)
+        val gap = pixels(SEARCH_CALLOUT_GAP_DP)
+        val width = bubbleWidth
+        val height = bubbleHeight + gap + pinSize
+
+        val bitmap = createBitmap(width.toInt().coerceAtLeast(1), height.toInt().coerceAtLeast(1))
+        val canvas = android.graphics.Canvas(bitmap)
+
+        val stroke = pixels(1)
+        val bubbleRect = android.graphics.RectF(
+            stroke / 2,
+            stroke / 2,
+            bubbleWidth - stroke / 2,
+            bubbleHeight - stroke / 2,
+        )
+        val cornerRadius = pixels(12)
+        canvas.drawRoundRect(
+            bubbleRect,
+            cornerRadius,
+            cornerRadius,
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = android.graphics.Color.WHITE
+                style = Paint.Style.FILL
+                setShadowLayer(pixels(4), 0f, pixels(2), 0x33000000)
+            },
+        )
+        canvas.drawRoundRect(
+            bubbleRect,
+            cornerRadius,
+            cornerRadius,
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = 0x26000000
                 style = Paint.Style.STROKE
-                strokeWidth = pixels(2f)
+                strokeWidth = stroke
             },
         )
 
+        fun drawButton(imageResource: Int, left: Float) {
+            val drawable = ContextCompat.getDrawable(context, imageResource) ?: return
+            val inset = pixels(8)
+            val iconLeft = (left + inset).toInt()
+            val iconTop = inset.toInt()
+            val iconSize = (buttonSize - inset * 2).toInt()
+            drawable.setBounds(iconLeft, iconTop, iconLeft + iconSize, iconTop + iconSize)
+            drawable.draw(canvas)
+        }
+        drawButton(R.drawable.ic_callout_bookmark, 0f)
+        drawButton(R.drawable.ic_callout_close, bubbleWidth - buttonSize)
+
+        val textLeft = buttonSize + pixels(4)
+        val textWidth = bubbleWidth - buttonSize * 2 - pixels(8)
+        val fontScale = context.resources.configuration.fontScale
+        val namePaint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+            color = android.graphics.Color.BLACK
+            textSize = pixels(16) * fontScale
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+        }
+        val name = android.text.TextUtils.ellipsize(
+            place.name,
+            namePaint,
+            textWidth,
+            android.text.TextUtils.TruncateAt.END,
+        ).toString()
+        val subtitle = place.subtitle.takeIf(String::isNotBlank)
+        if (subtitle != null) {
+            val subtitlePaint = android.text.TextPaint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.DKGRAY
+                textSize = pixels(12) * fontScale
+            }
+            val subtitleText = android.text.TextUtils.ellipsize(
+                subtitle,
+                subtitlePaint,
+                textWidth,
+                android.text.TextUtils.TruncateAt.END,
+            ).toString()
+            canvas.drawText(name, textLeft, bubbleHeight / 2 - pixels(2), namePaint)
+            canvas.drawText(subtitleText, textLeft, bubbleHeight / 2 + pixels(14), subtitlePaint)
+        } else {
+            val baseline = bubbleHeight / 2 - (namePaint.descent() + namePaint.ascent()) / 2
+            canvas.drawText(name, textLeft, baseline, namePaint)
+        }
+
+        // Pin badge, hanging below the bubble, centered horizontally and reusing the same
+        // magnifier glyph as the previous marker icon.
+        canvas.save()
+        canvas.translate((width - pinSize) / 2, bubbleHeight + gap)
+        val center = pinSize / 2
+        canvas.drawCircle(
+            center,
+            center,
+            pixels(14),
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.rgb(242, 140, 40)
+                setShadowLayer(pixels(2), 0f, pixels(1), 0x40000000)
+            },
+        )
+        canvas.drawCircle(
+            center,
+            center,
+            pixels(14),
+            Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                color = android.graphics.Color.WHITE
+                style = Paint.Style.STROKE
+                strokeWidth = pixels(2)
+            },
+        )
         val glyph = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = android.graphics.Color.WHITE }
-        canvas.drawCircle(center, pixels(15f), pixels(5.5f), glyph)
+        canvas.drawCircle(center, pixels(15), pixels(5.5f), glyph)
         canvas.drawPath(
             android.graphics.Path().apply {
-                moveTo(pixels(13.8f), pixels(18f))
-                lineTo(center, pixels(27f))
-                lineTo(pixels(22.2f), pixels(18f))
+                moveTo(pixels(13.8f), pixels(18))
+                lineTo(center, pixels(27))
+                lineTo(pixels(22.2f), pixels(18))
                 close()
             },
             glyph,
         )
         canvas.drawCircle(
             center,
-            pixels(15f),
+            pixels(15),
             pixels(2.3f),
             Paint(Paint.ANTI_ALIAS_FLAG).apply {
                 color = android.graphics.Color.rgb(242, 140, 40)
             },
         )
-        return IconFactory.getInstance(context).fromBitmap(bitmap)
-    }
+        canvas.restore()
 
-    private fun searchCallout(
-        context: android.content.Context,
-        place: PlaceResult,
-        onSave: () -> Unit,
-        onDismiss: () -> Unit,
-    ): android.view.View {
-        val density = context.resources.displayMetrics.density
-        fun pixels(dp: Int) = (dp * density).toInt()
-
-        fun actionButton(
-            imageResource: Int,
-            description: String,
-            onClick: () -> Unit,
-        ) = ImageButton(context).apply {
-            setImageResource(imageResource)
-            contentDescription = description
-            background = null
-            scaleType = ImageView.ScaleType.CENTER
-            setPadding(pixels(8), pixels(8), pixels(8), pixels(8))
-            layoutParams = LinearLayout.LayoutParams(pixels(40), pixels(40))
-            setOnClickListener { onClick() }
-        }
-
-        val textColumn = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(pixels(190), ViewGroup.LayoutParams.WRAP_CONTENT)
-            addView(TextView(context).apply {
-                text = place.name
-                setTextColor(android.graphics.Color.BLACK)
-                textSize = 16f
-                maxLines = 1
-                ellipsize = android.text.TextUtils.TruncateAt.END
-            })
-            if (place.subtitle.isNotBlank()) {
-                addView(TextView(context).apply {
-                    text = place.subtitle
-                    setTextColor(android.graphics.Color.DKGRAY)
-                    textSize = 12f
-                    maxLines = 1
-                    ellipsize = android.text.TextUtils.TruncateAt.END
-                })
-            }
-        }
-
-        val bubble = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = ViewGroup.LayoutParams(pixels(286), pixels(56))
-            minimumWidth = pixels(286)
-            minimumHeight = pixels(56)
-            elevation = pixels(4).toFloat()
-            setPadding(pixels(4), pixels(6), pixels(4), pixels(6))
-            background = GradientDrawable().apply {
-                color = android.content.res.ColorStateList.valueOf(android.graphics.Color.WHITE)
-                cornerRadius = pixels(12).toFloat()
-                setStroke(pixels(1), 0x26000000)
-            }
-            addView(actionButton(R.drawable.ic_callout_bookmark, "Save place", onSave))
-            addView(textColumn)
-            addView(actionButton(R.drawable.ic_callout_close, "Close place", onDismiss))
-        }
-
-        return bubble
-    }
-
-    private fun removeSearchMarker() {
-        searchMarker?.let { marker -> map?.removeMarker(marker) }
-        searchMarker = null
-        selectedSearchPlace = null
+        return bitmap
     }
 
     fun fitRoute(coordinates: List<GeoCoordinate>, version: Int) {
@@ -1614,6 +1696,14 @@ private class MapHolder {
         private const val START_SOURCE = "route-start"
         private const val END_SOURCE = "route-end"
         private const val DISTANCE_MARKERS_SOURCE = "distance-markers"
+        private const val SEARCH_CALLOUT_SOURCE = "search-callout"
+        private const val SEARCH_CALLOUT_LAYER = "search-callout-layer"
+        private const val SEARCH_CALLOUT_ICON_ID = "search-callout-icon"
+        private const val SEARCH_CALLOUT_BUBBLE_WIDTH_DP = 286
+        private const val SEARCH_CALLOUT_BUBBLE_HEIGHT_DP = 56
+        private const val SEARCH_CALLOUT_BUTTON_SIZE_DP = 40
+        private const val SEARCH_CALLOUT_PIN_SIZE_DP = 36
+        private const val SEARCH_CALLOUT_GAP_DP = 10
 
         // Matches MapLibre iOS's MLNMinimumZoomLevelForUserTracking / MLNDefaultZoomLevelForUserTracking.
         private const val MINIMUM_ZOOM_LEVEL_FOR_TRACKING = 10.5
