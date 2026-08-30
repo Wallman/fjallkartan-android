@@ -3,6 +3,7 @@
 package fjallkartan.fjallkartan.product
 
 import androidx.annotation.DrawableRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -45,9 +46,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import fjallkartan.fjallkartan.R
@@ -62,12 +62,12 @@ enum class LegendCountry { Sweden, Norway }
 
 data class LegendEntry(
     @param:DrawableRes val drawable: Int,
-    val title: String,
+    @param:StringRes val title: Int,
     val nativeName: String,
     val isLine: Boolean = false,
 )
 
-private data class LegendSection(val title: String, val entries: List<LegendEntry>)
+private data class LegendSection(@param:StringRes val title: Int, val entries: List<LegendEntry>)
 
 private object LegendCatalog {
     /// Symbols wider than they are tall are lines and get a wide chip; point
@@ -86,85 +86,84 @@ private object LegendCatalog {
     )
 
     val sweden = listOf(
-        section("Trails and routes",
-            e(R.drawable.legend_se_trail_summer_marked, "Marked hiking trail", "Markerad vandringsled"),
-            e(R.drawable.legend_se_trail_summer_winter_marked, "Marked summer and winter trail", "Markerad sommar- och vinterled"),
-            e(R.drawable.legend_se_trail_winter_marked, "Marked winter trail", "Markerad vinterled"),
-            e(R.drawable.legend_se_trail_summer_only_marked, "Marked summer trail", "Markerad sommarled"),
-            e(R.drawable.legend_se_trail_recommended_unmarked, "Recommended route, unmarked", "Lämplig färdväg, omarkerad"),
-            e(R.drawable.legend_se_trail_poorly_marked, "Path that is hard to follow", "Svårorienterad gångstig"),
-            e(R.drawable.legend_se_trail_ski, "Ski track", "Skidspår"),
-            e(R.drawable.legend_se_trail_snowmobile, "Snowmobile route", "Färdväg vid skoteråkning"),
-            e(R.drawable.legend_se_trail_snowmobile_mandatory, "Mandatory snowmobile route", "Påbjuden färdväg vid skoteråkning"),
-            e(R.drawable.legend_se_trail_reindeer_husbandry, "Reindeer husbandry route", "Rennäringsled"),
-            e(R.drawable.legend_se_trail_boat, "Boat route, rowing route", "Trafikerad båtled, roddled"),
-            e(R.drawable.legend_se_trail_boat_portage, "Boat portage", "Båtdrag")),
-        section("Cabins and shelter",
-            e(R.drawable.legend_se_mountain_lodge, "Mountain lodge", "Fjällstation"),
-            e(R.drawable.legend_se_tourist_hut, "Tourist hut, overnight hut", "Turiststuga, övernattningsstuga"),
-            e(R.drawable.legend_se_solitary_cabin, "Solitary mountain cabin", "Enslig stuga i fjällen"),
-            e(R.drawable.legend_se_rest_cabin, "Rest cabin", "Raststuga"),
-            e(R.drawable.legend_se_wind_shelter, "Wind shelter", "Vindskydd"),
-            e(R.drawable.legend_se_sami_cot, "Sami hut", "Kåta"),
-            e(R.drawable.legend_se_blast_shelter, "Blast shelter", "Skyddsvärn")),
-        section("Facilities and crossings",
-            e(R.drawable.legend_se_parking, "Parking", "Parkering"),
-            e(R.drawable.legend_se_helipad, "Helicopter pad", "Helikopterplats"),
-            e(R.drawable.legend_se_emergency_phone, "Emergency telephone", "Hjälptelefon"),
-            e(R.drawable.legend_se_bridge, "Bridge", "Bro"),
-            e(R.drawable.legend_se_ford, "Ford", "Vad")),
-        section("Fences and restrictions",
-            e(R.drawable.legend_se_reindeer_fence, "Reindeer fence", "Renstängsel"),
-            e(R.drawable.legend_se_reindeer_corral, "Reindeer corral", "Rengärde"),
-            e(R.drawable.legend_se_area_no_tent_or_fire, "Camping and open fires prohibited", "Tält- och eldningsförbud")),
+        section(R.string.trails_and_routes,
+            e(R.drawable.legend_se_trail_summer_marked, R.string.marked_hiking_trail, "Markerad vandringsled"),
+            e(R.drawable.legend_se_trail_summer_winter_marked, R.string.marked_summer_and_winter_trail, "Markerad sommar- och vinterled"),
+            e(R.drawable.legend_se_trail_winter_marked, R.string.marked_winter_trail, "Markerad vinterled"),
+            e(R.drawable.legend_se_trail_summer_only_marked, R.string.marked_summer_trail, "Markerad sommarled"),
+            e(R.drawable.legend_se_trail_recommended_unmarked, R.string.recommended_route_unmarked, "Lämplig färdväg, omarkerad"),
+            e(R.drawable.legend_se_trail_poorly_marked, R.string.path_that_is_hard_to_follow, "Svårorienterad gångstig"),
+            e(R.drawable.legend_se_trail_ski, R.string.ski_track, "Skidspår"),
+            e(R.drawable.legend_se_trail_snowmobile, R.string.snowmobile_route, "Färdväg vid skoteråkning"),
+            e(R.drawable.legend_se_trail_snowmobile_mandatory, R.string.mandatory_snowmobile_route, "Påbjuden färdväg vid skoteråkning"),
+            e(R.drawable.legend_se_trail_reindeer_husbandry, R.string.reindeer_husbandry_route, "Rennäringsled"),
+            e(R.drawable.legend_se_trail_boat, R.string.boat_route_rowing_route, "Trafikerad båtled, roddled"),
+            e(R.drawable.legend_se_trail_boat_portage, R.string.boat_portage, "Båtdrag")),
+        section(R.string.cabins_and_shelter,
+            e(R.drawable.legend_se_mountain_lodge, R.string.mountain_lodge, "Fjällstation"),
+            e(R.drawable.legend_se_tourist_hut, R.string.tourist_hut_overnight_hut, "Turiststuga, övernattningsstuga"),
+            e(R.drawable.legend_se_solitary_cabin, R.string.solitary_mountain_cabin, "Enslig stuga i fjällen"),
+            e(R.drawable.legend_se_rest_cabin, R.string.rest_cabin, "Raststuga"),
+            e(R.drawable.legend_se_wind_shelter, R.string.wind_shelter, "Vindskydd"),
+            e(R.drawable.legend_se_sami_cot, R.string.sami_hut, "Kåta"),
+            e(R.drawable.legend_se_blast_shelter, R.string.blast_shelter, "Skyddsvärn")),
+        section(R.string.facilities_and_crossings,
+            e(R.drawable.legend_se_parking, R.string.parking, "Parkering"),
+            e(R.drawable.legend_se_helipad, R.string.helicopter_pad, "Helikopterplats"),
+            e(R.drawable.legend_se_emergency_phone, R.string.emergency_telephone, "Hjälptelefon"),
+            e(R.drawable.legend_se_bridge, R.string.bridge, "Bro"),
+            e(R.drawable.legend_se_ford, R.string.ford, "Vad")),
+        section(R.string.fences_and_restrictions,
+            e(R.drawable.legend_se_reindeer_fence, R.string.reindeer_fence, "Renstängsel"),
+            e(R.drawable.legend_se_reindeer_corral, R.string.reindeer_corral, "Rengärde"),
+            e(R.drawable.legend_se_area_no_tent_or_fire, R.string.camping_and_open_fires_prohibited, "Tält- och eldningsförbud")),
     )
 
     val norway = listOf(
-        section("Trails and routes",
-            e(R.drawable.legend_no_trail_marked, "Marked trail", "Merket sti"),
-            e(R.drawable.legend_no_trail_unmarked, "Unmarked trail", "Umerket sti"),
-            e(R.drawable.legend_no_tractor_road, "Tractor road, foot and cycle path", "Traktorveg, gang- og sykkelveg"),
-            e(R.drawable.legend_no_offroad_route, "Off-road vehicle route, summer", "Barmarksløype"),
-            e(R.drawable.legend_no_floodlit_trail, "Floodlit trail", "Lysløype"),
-            e(R.drawable.legend_no_ski_lift, "Ski lift", "Skitrekk")),
-        section("Cabins and shelter",
-            e(R.drawable.legend_no_cabin_staffed, "Staffed tourist cabin", "Betjent turisthytte"),
-            e(R.drawable.legend_no_cabin_self_service, "Self-service tourist cabin", "Selvbetjent turisthytte"),
-            e(R.drawable.legend_no_cabin_unstaffed, "Unstaffed tourist cabin", "Ubetjent turisthytte"),
-            e(R.drawable.legend_no_rest_cabin, "Rest cabin", "Rastebu"),
-            e(R.drawable.legend_no_lean_to, "Lean-to shelter", "Gapahuk")),
-        section("Facilities and crossings",
-            e(R.drawable.legend_no_campsite, "Campsite", "Campingplass"),
-            e(R.drawable.legend_no_parking, "Parking", "Parkering"),
-            e(R.drawable.legend_no_helipad, "Large helicopter landing site", "Stor helikopterlandingsplass"),
-            e(R.drawable.legend_no_pier, "Pier and jetty", "Kai og brygge")),
-        section("Fences and restrictions",
-            e(R.drawable.legend_no_reindeer_fence, "Reindeer fence", "Reingjerde")),
+        section(R.string.trails_and_routes,
+            e(R.drawable.legend_no_trail_marked, R.string.marked_trail, "Merket sti"),
+            e(R.drawable.legend_no_trail_unmarked, R.string.unmarked_trail, "Umerket sti"),
+            e(R.drawable.legend_no_tractor_road, R.string.tractor_road_foot_and_cycle_path, "Traktorveg, gang- og sykkelveg"),
+            e(R.drawable.legend_no_offroad_route, R.string.off_road_vehicle_route_summer, "Barmarksløype"),
+            e(R.drawable.legend_no_floodlit_trail, R.string.floodlit_trail, "Lysløype"),
+            e(R.drawable.legend_no_ski_lift, R.string.ski_lift, "Skitrekk")),
+        section(R.string.cabins_and_shelter,
+            e(R.drawable.legend_no_cabin_staffed, R.string.staffed_tourist_cabin, "Betjent turisthytte"),
+            e(R.drawable.legend_no_cabin_self_service, R.string.self_service_tourist_cabin, "Selvbetjent turisthytte"),
+            e(R.drawable.legend_no_cabin_unstaffed, R.string.unstaffed_tourist_cabin, "Ubetjent turisthytte"),
+            e(R.drawable.legend_no_rest_cabin, R.string.rest_cabin, "Rastebu"),
+            e(R.drawable.legend_no_lean_to, R.string.lean_to_shelter, "Gapahuk")),
+        section(R.string.facilities_and_crossings,
+            e(R.drawable.legend_no_campsite, R.string.campsite, "Campingplass"),
+            e(R.drawable.legend_no_parking, R.string.parking, "Parkering"),
+            e(R.drawable.legend_no_helipad, R.string.large_helicopter_landing_site, "Stor helikopterlandingsplass"),
+            e(R.drawable.legend_no_pier, R.string.pier_and_jetty, "Kai og brygge")),
+        section(R.string.fences_and_restrictions,
+            e(R.drawable.legend_no_reindeer_fence, R.string.reindeer_fence, "Reingjerde")),
     )
 
-    private fun e(drawable: Int, title: String, nativeName: String) =
+    private fun e(drawable: Int, @StringRes title: Int, nativeName: String) =
         LegendEntry(drawable, title, nativeName, isLine = drawable in lineDrawables)
 
-    private fun section(title: String, vararg entries: LegendEntry) =
+    private fun section(@StringRes title: Int, vararg entries: LegendEntry) =
         LegendSection(title, entries.toList())
 }
 
 @Composable
 fun LegendSheet(onDismiss: () -> Unit) {
-    val context = LocalContext.current
-    val localizer = remember { Localizer.get(context) }
-    val locale = LocalConfiguration.current.locales[0]
-    fun text(key: String) = localizer.text(key, locale)
     var country by remember { mutableStateOf(LegendCountry.Sweden) }
     var query by remember { mutableStateOf("") }
     val sections = when (country) {
         LegendCountry.Sweden -> LegendCatalog.sweden
         LegendCountry.Norway -> LegendCatalog.norway
     }
+    // Resolved via stringResource (not LocalContext.current.getString) so the
+    // search index stays configuration-aware if the locale changes.
+    val titleLookup = sections.flatMap { it.entries }.associate { it.title to stringResource(it.title) }
     val filtered = sections.mapNotNull { section ->
         val entries = section.entries.filter {
             query.isBlank() ||
-                it.title.contains(query, ignoreCase = true) ||
+                titleLookup.getValue(it.title).contains(query, ignoreCase = true) ||
                 it.nativeName.contains(query, ignoreCase = true)
         }
         section.takeIf { entries.isNotEmpty() }?.copy(entries = entries)
@@ -179,40 +178,46 @@ fun LegendSheet(onDismiss: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                CountrySwitch(country = country, onSelect = { country = it }, text = ::text)
+                CountrySwitch(country = country, onSelect = { country = it })
                 TextButton(onClick = onDismiss, shape = CircleShape) {
-                    Text(text("Done"), fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.done), fontWeight = FontWeight.Bold)
                 }
             }
             LazyColumn(Modifier.weight(1f).padding(horizontal = 16.dp)) {
                 filtered.forEach { section ->
                     item {
-                        SectionHeader(text(section.title))
+                        SectionHeader(stringResource(section.title))
                         LegendCard {
                             section.entries.forEachIndexed { index, entry ->
-                                LegendRow(entry = entry, title = text(entry.title))
+                                LegendRow(entry = entry, title = stringResource(entry.title))
                                 if (index != section.entries.lastIndex) LegendDivider()
                             }
                         }
                     }
                 }
                 if (query.isBlank()) {
-                    item { SlopeLegend(country, ::text) }
+                    item { SlopeLegend(country) }
                 }
             }
             Spacer(Modifier.height(4.dp))
             SearchField(
                 value = query,
                 onValueChange = { query = it },
-                placeholder = text("Find a symbol"),
+                placeholder = stringResource(R.string.find_a_symbol),
                 modifier = Modifier.padding(horizontal = 16.dp),
             )
         }
     }
 }
 
+private val LegendCountry.labelRes: Int
+    @StringRes get() = when (this) {
+        LegendCountry.Sweden -> R.string.sweden
+        LegendCountry.Norway -> R.string.norway
+    }
+
 @Composable
-private fun CountrySwitch(country: LegendCountry, onSelect: (LegendCountry) -> Unit, text: (String) -> String) {
+private fun CountrySwitch(country: LegendCountry, onSelect: (LegendCountry) -> Unit) {
     Row(
         Modifier
             .clip(CircleShape)
@@ -230,7 +235,7 @@ private fun CountrySwitch(country: LegendCountry, onSelect: (LegendCountry) -> U
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
-                    text(option.name),
+                    stringResource(option.labelRes),
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal,
                 )
             }
@@ -328,20 +333,20 @@ private fun SearchField(
 }
 
 @Composable
-private fun SlopeLegend(country: LegendCountry, text: (String) -> String) {
+private fun SlopeLegend(country: LegendCountry) {
     val bands = listOf(
-        Color(0xFFFFFF00) to "30–35°",
-        Color(0xFFFFAA00) to "35–40°",
-        Color(0xFFFF5500) to "40–45°",
-        Color(0xFFFF0000) to "45–50°",
-        Color(0xFF730000) to "50° and steeper",
+        Color(0xFFFFFF00) to R.string.n_30_35deg,
+        Color(0xFFFFAA00) to R.string.n_35_40deg,
+        Color(0xFFFF5500) to R.string.n_40_45deg,
+        Color(0xFFFF0000) to R.string.n_45_50deg,
+        Color(0xFF730000) to R.string.n_50deg_and_steeper,
     ) + if (country == LegendCountry.Norway) {
-        listOf(Color(0xFF4C9BFF) to "Modelled avalanche runout")
+        listOf(Color(0xFF4C9BFF) to R.string.modelled_avalanche_runout)
     } else {
         emptyList()
     }
 
-    SectionHeader(text("Steepness"))
+    SectionHeader(stringResource(R.string.steepness))
     LegendCard {
         bands.forEachIndexed { index, (colour, label) ->
             ListItem(
@@ -354,7 +359,7 @@ private fun SlopeLegend(country: LegendCountry, text: (String) -> String) {
                             .border(BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant), RoundedCornerShape(6.dp)),
                     )
                 },
-                headlineContent = { Text(text(label)) },
+                headlineContent = { Text(stringResource(label)) },
                 colors = ListItemDefaults.colors(containerColor = Color.Transparent),
             )
             if (index != bands.lastIndex) LegendDivider()

@@ -1,12 +1,13 @@
 package fjallkartan.fjallkartan
 
+import android.content.res.Configuration
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
-import fjallkartan.fjallkartan.product.Localizer
+import fjallkartan.fjallkartan.R
 import java.util.Locale
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -29,11 +30,17 @@ class ProductUiInstrumentedTest {
 
     @Test
     fun importedCatalogueContainsEverySupportedLanguage() {
-        val localizer = Localizer.get(context)
-        listOf("da", "es", "fi", "fr", "it", "nb", "nl", "sv").forEach { language ->
-            assertNotEquals("About", localizer.text("About", Locale(language)))
+        val defaultAbout = context.getString(R.string.about)
+        listOf("da", "de", "es", "fi", "fr", "it", "nb", "nl", "sv").forEach { language ->
+            assertNotEquals(language, defaultAbout, localizedString(Locale(language), R.string.about))
         }
-        assertNotEquals("About", localizer.text("About", Locale.GERMAN))
-        assertNotEquals("About", localizer.text("About", Locale.forLanguageTag("zh-Hans")))
+        assertNotEquals(defaultAbout, localizedString(Locale.forLanguageTag("zh-Hans"), R.string.about))
+    }
+
+    private fun localizedString(locale: Locale, resId: Int): String {
+        val configuration = Configuration(context.resources.configuration)
+        configuration.setLocale(locale)
+        return context.createConfigurationContext(configuration).resources.getString(resId)
     }
 }
+

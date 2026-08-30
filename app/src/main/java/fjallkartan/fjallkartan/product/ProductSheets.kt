@@ -49,27 +49,31 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.annotation.StringRes
 import androidx.core.content.edit
 import androidx.core.net.toUri
 import fjallkartan.fjallkartan.BuildConfig
+import fjallkartan.fjallkartan.R
 import kotlinx.coroutines.launch
 import org.maplibre.android.offline.OfflineManager
 
 private data class GuidePage(
     val icon: ImageVector,
-    val title: String,
-    val message: String,
-    val notes: List<String> = emptyList(),
+    @param:StringRes val title: Int,
+    @param:StringRes val message: Int,
+    val notes: List<Int> = emptyList(),
 )
 
 private val guidePages = listOf(
-    GuidePage(Icons.Default.Search, "Find a place", "Search Norwegian and Swedish place names.", listOf("Save a result as a pin.")),
-    GuidePage(Icons.Default.Straighten, "Measure a route", "Tap the ruler, then drag to trace your route.", listOf("One finger draws.", "Two fingers move and zoom.", "Tap the distance for the terrain profile.")),
-    GuidePage(Icons.Default.LocationOn, "Mark a spot", "Press and hold the map to drop a pin. Tap it to rename or delete it."),
-    GuidePage(Icons.Default.Layers, "Steepness", "Shade terrain by slope angle to spot steep ground."),
-    GuidePage(Icons.Default.DownloadForOffline, "Offline mode", "Frame the area inside the dashed box, then download it."),
-    GuidePage(Icons.Default.CheckCircle, "You're ready", "Open this guide again from About."),
+    GuidePage(Icons.Default.Search, R.string.find_a_place, R.string.search_norwegian_and_swedish_place_names_including_local, listOf(R.string.save_the_result_as_a_pin)),
+    GuidePage(Icons.Default.Straighten, R.string.measure_a_route, R.string.tap_the_ruler_then_drag_to_trace_your_route, listOf(R.string.one_finger_draws, R.string.two_fingers_move_and_zoom, R.string.tap_the_distance_for_the_terrain_profile)),
+    GuidePage(Icons.Default.LocationOn, R.string.mark_a_spot, R.string.press_and_hold_the_map_to_drop_a_pin_tap_a_pin_to_rename_or),
+
+    GuidePage(Icons.Default.Layers, R.string.steepness, R.string.shade_the_terrain_by_slope_angle_to_spot_steep_ground),
+    GuidePage(Icons.Default.DownloadForOffline, R.string.offline_mode, R.string.frame_the_area_inside_the_dashed_box_then_download_it),
+    GuidePage(Icons.Default.CheckCircle, R.string.youre_ready, R.string.open_this_guide_again_from_about),
 )
 
 @Composable
@@ -99,19 +103,19 @@ fun OnboardingSheet(onDismiss: () -> Unit) {
                         )
                     }
                     Spacer(Modifier.height(20.dp))
-                    Text(localText(page.title), style = MaterialTheme.typography.headlineSmall)
-                    Text(localText(page.message), modifier = Modifier.padding(top = 12.dp))
-                    page.notes.forEach { Text("• ${localText(it)}", modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) }
+                    Text(stringResource(page.title), style = MaterialTheme.typography.headlineSmall)
+                    Text(stringResource(page.message), modifier = Modifier.padding(top = 12.dp))
+                    page.notes.forEach { Text("• ${stringResource(it)}", modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) }
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                TextButton(onClick = onDismiss) { Text(localText("Skip")) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.skip)) }
                 Text("${pager.currentPage + 1} / ${guidePages.size}")
                 Button(onClick = {
                     if (pager.currentPage == guidePages.lastIndex) onDismiss()
                     else scope.launch { pager.animateScrollToPage(pager.currentPage + 1) }
                 }) {
-                    Text(localText(if (pager.currentPage == guidePages.lastIndex) "Done" else "Next"))
+                    Text(stringResource(if (pager.currentPage == guidePages.lastIndex) R.string.done else R.string.next))
                 }
             }
         }
@@ -128,20 +132,20 @@ fun AboutSheet(
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         Column(Modifier.fillMaxWidth().padding(bottom = 28.dp)) {
-            Text(localText("About"), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
+            Text(stringResource(R.string.about), style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(16.dp))
             LinkRow("©Kartverket", "https://www.kartverket.no/")
             LinkRow("©Lantmäteriet", "https://www.lantmateriet.se/")
             LinkRow("©NVE", "https://www.nve.no/")
             LinkRow("©MapLibre Native", "https://maplibre.org/")
             HorizontalDivider(Modifier.padding(vertical = 8.dp))
             ListItem(
-                headlineContent = { Text(localText("How to use the app")) },
+                headlineContent = { Text(stringResource(R.string.how_to_use_the_app)) },
                 modifier = Modifier.combinedClickable(onClick = onShowGuide),
             )
-            LinkRow(localText("Support"), "https://wallman.github.io/fjallkartan-ios/support.html")
-            LinkRow(localText("Privacy Policy"), "https://wallman.github.io/fjallkartan-ios/privacy.html")
+            LinkRow(stringResource(R.string.support), "https://wallman.github.io/fjallkartan-ios/support.html")
+            LinkRow(stringResource(R.string.privacy_policy), "https://wallman.github.io/fjallkartan-ios/privacy.html")
             ListItem(
-                headlineContent = { Text(localText("Version")) },
+                headlineContent = { Text(stringResource(R.string.version)) },
                 trailingContent = { Text("${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})") },
                 modifier = Modifier.combinedClickable(onClick = {}, onLongClick = onShowDebug),
             )
@@ -171,11 +175,11 @@ fun DebugSheet(
     var statusMessage by remember { mutableStateOf<String?>(null) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(localText("Debug tools")) },
+        title = { Text(stringResource(R.string.debug_tools)) },
         text = {
             Column {
                 ListItem(
-                    headlineContent = { Text(localText("Show zoom level")) },
+                    headlineContent = { Text(stringResource(R.string.show_zoom_level)) },
                     trailingContent = {
                         Switch(checked = showZoom, onCheckedChange = onShowZoomChanged)
                     },
@@ -187,12 +191,12 @@ fun DebugSheet(
                             override fun onError(message: String) { statusMessage = message }
                         },
                     )
-                }) { Text(localText("Clear map cache")) }
-                TextButton(onClick = { shareDiagnostics(context) }) { Text(localText("Share diagnostics")) }
+                }) { Text(stringResource(R.string.clear_map_cache)) }
+                TextButton(onClick = { shareDiagnostics(context) }) { Text(stringResource(R.string.share_diagnostics)) }
                 statusMessage?.let { Text(it) }
             }
         },
-        confirmButton = { TextButton(onClick = onDismiss) { Text(localText("Done")) } },
+        confirmButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.done)) } },
     )
 }
 

@@ -37,7 +37,8 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.unit.dp
 import fjallkartan.fjallkartan.measurement.DistanceMeasurement
-import fjallkartan.fjallkartan.product.localText
+import androidx.compose.ui.res.stringResource
+import fjallkartan.fjallkartan.R
 import fjallkartan.fjallkartan.search.PlaceResult
 
 @Composable
@@ -70,7 +71,7 @@ fun PlaceSearchSheet(
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp)
                     .focusRequester(focusRequester),
-                label = { Text(localText("Search places")) },
+                label = { Text(stringResource(R.string.search_places)) },
                 singleLine = true,
             )
             LazyColumn(Modifier.weight(1f)) {
@@ -100,7 +101,7 @@ fun PlaceSearchSheet(
                                 }
                                 if (place.matchedAlias != null) {
                                     Text(
-                                        localText("also %@").replace("%@", place.matchedAlias),
+                                        stringResource(R.string.also, place.matchedAlias),
                                         style = MaterialTheme.typography.labelSmall,
                                     )
                                 }
@@ -108,7 +109,7 @@ fun PlaceSearchSheet(
                         },
                         trailingContent = {
                             IconButton(onClick = { onSave(place) }) {
-                                Icon(Icons.Default.BookmarkAdd, contentDescription = localText("Save place"))
+                                Icon(Icons.Default.BookmarkAdd, contentDescription = stringResource(R.string.save_place))
                             }
                         },
                         modifier = Modifier.clickable { onSelect(place) },
@@ -135,7 +136,7 @@ fun SavedRoutesSheet(
     ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheetState) {
         LazyColumn(Modifier.fillMaxWidth().fillMaxHeight(0.9f).padding(bottom = 28.dp)) {
             item {
-                Text(localText("Saved routes"), modifier = Modifier.padding(16.dp))
+                Text(stringResource(R.string.saved_routes), modifier = Modifier.padding(16.dp))
             }
             items(saved, key = SavedRoute::id) { route ->
                 ListItem(
@@ -144,10 +145,10 @@ fun SavedRoutesSheet(
                     trailingContent = {
                         Row {
                             IconButton(onClick = { renameTarget = route }) {
-                                Icon(Icons.Default.Edit, contentDescription = localText("Rename route"))
+                                Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.rename_route))
                             }
                             IconButton(onClick = { onDelete(route) }) {
-                                Icon(Icons.Default.Delete, contentDescription = localText("Delete route"))
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete_route))
                             }
                         }
                     },
@@ -156,7 +157,7 @@ fun SavedRoutesSheet(
             }
             item {
                 HorizontalDivider()
-                Text(localText("Suggested routes"), modifier = Modifier.padding(16.dp))
+                Text(stringResource(R.string.suggested_routes), modifier = Modifier.padding(16.dp))
             }
             items(featured, key = FeaturedRoute::id) { featuredRoute ->
                 ListItem(
@@ -172,7 +173,7 @@ fun SavedRoutesSheet(
 
     renameTarget?.let { route ->
         NameDialog(
-            title = localText("Rename route"),
+            title = stringResource(R.string.rename_route),
             initialValue = route.name.orEmpty(),
             onConfirm = {
                 onRename(route, it)
@@ -198,15 +199,15 @@ fun NameDialog(
             TextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text(localText("Name")) },
+                label = { Text(stringResource(R.string.name)) },
                 singleLine = true,
             )
         },
         confirmButton = {
-            TextButton(onClick = { onConfirm(name) }) { Text(localText("Save")) }
+            TextButton(onClick = { onConfirm(name) }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text(localText("Cancel")) }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
         },
     )
 }
@@ -222,20 +223,20 @@ fun PinDetailDialog(
     var notes by remember(pin.id) { mutableStateOf(pin.notes.orEmpty()) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(pin.displayName.ifBlank { localText("Saved pin") }) },
+        title = { Text(pin.displayName.ifBlank { stringResource(R.string.saved_pin) }) },
         text = {
             Column {
                 TextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text(localText("Name")) },
+                    label = { Text(stringResource(R.string.name)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 TextField(
                     value = notes,
                     onValueChange = { notes = it },
-                    label = { Text(localText("Notes")) },
+                    label = { Text(stringResource(R.string.notes)) },
                     minLines = 3,
                     maxLines = 6,
                     modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
@@ -251,7 +252,7 @@ fun PinDetailDialog(
             TextButton(onClick = {
                 onSave(name, notes)
                 onDismiss()
-            }) { Text(localText("Save")) }
+            }) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
             Row {
@@ -259,9 +260,9 @@ fun PinDetailDialog(
                     onDelete()
                     onDismiss()
                 }) {
-                    Text(localText("Delete"), color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
                 }
-                TextButton(onClick = onDismiss) { Text(localText("Cancel")) }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
             }
         },
     )

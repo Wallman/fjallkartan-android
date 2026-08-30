@@ -69,6 +69,14 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    lint {
+        // Some UI strings (Android-only debug tools, platform-specific
+        // wording, degree/unit labels) intentionally have no translation and
+        // fall back to the English default -- that's expected, not a bug, so
+        // don't fail the build over it. `tools/import_localizations.py`
+        // prints a full per-language coverage report on every run.
+        disable += "MissingTranslation"
+    }
 }
 
 dependencies {

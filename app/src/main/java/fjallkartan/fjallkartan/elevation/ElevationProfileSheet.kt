@@ -36,7 +36,9 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import fjallkartan.fjallkartan.product.localText
+import androidx.annotation.StringRes
+import androidx.compose.ui.res.stringResource
+import fjallkartan.fjallkartan.R
 import kotlin.math.ceil
 import kotlin.math.floor
 import kotlin.math.pow
@@ -61,18 +63,18 @@ fun ElevationProfileSheet(
         ) {
             Box(Modifier.fillMaxWidth()) {
                 Text(
-                    "Elevation",
+                    stringResource(R.string.elevation),
                     style = MaterialTheme.typography.titleLarge,
                     modifier = Modifier.align(Alignment.Center),
                 )
                 TextButton(onClick = onDismiss, modifier = Modifier.align(Alignment.CenterEnd)) {
-                    Text(localText("Done"), fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.done), fontWeight = FontWeight.SemiBold)
                 }
             }
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-                Metric("Ascent", state.ascent, Icons.Default.ArrowUpward)
-                Metric("Descent", state.descent, Icons.Default.ArrowDownward)
-                Metric("Highest", state.maximum, Icons.Default.Terrain)
+                Metric(R.string.ascent, state.ascent, Icons.Default.ArrowUpward)
+                Metric(R.string.descent, state.descent, Icons.Default.ArrowDownward)
+                Metric(R.string.highest, state.maximum, Icons.Default.Terrain)
             }
             ElevationChart(state, Modifier.fillMaxWidth().height(240.dp))
             if (state.isPartial) {
@@ -87,7 +89,7 @@ fun ElevationProfileSheet(
                         modifier = Modifier.size(18.dp),
                     )
                     Text(
-                        "Part of this route is outside the covered area, so the totals are a minimum.",
+                        stringResource(R.string.part_of_this_route_is_outside_the_covered_area_so_the),
                         color = MaterialTheme.colorScheme.secondary,
                         style = MaterialTheme.typography.bodyMedium,
                     )
@@ -98,7 +100,7 @@ fun ElevationProfileSheet(
 }
 
 @Composable
-private fun Metric(label: String, value: Double?, icon: ImageVector) {
+private fun Metric(@StringRes label: Int, value: Double?, icon: ImageVector) {
     Column {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Icon(
@@ -107,7 +109,7 @@ private fun Metric(label: String, value: Double?, icon: ImageVector) {
                 tint = MaterialTheme.colorScheme.secondary,
                 modifier = Modifier.size(14.dp),
             )
-            Text(label, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
+            Text(stringResource(label), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.secondary)
         }
         Text(
             value?.let { "${it.roundToInt()} m" } ?: "—",

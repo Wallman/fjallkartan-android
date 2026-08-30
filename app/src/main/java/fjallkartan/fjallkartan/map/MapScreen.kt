@@ -97,6 +97,7 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -126,7 +127,6 @@ import fjallkartan.fjallkartan.product.GuideTips
 import fjallkartan.fjallkartan.product.LegendSheet
 import fjallkartan.fjallkartan.product.OnboardingSheet
 import fjallkartan.fjallkartan.product.ReviewPrompter
-import fjallkartan.fjallkartan.product.localText
 import fjallkartan.fjallkartan.saved.NameDialog
 import fjallkartan.fjallkartan.saved.PinDetailDialog
 import fjallkartan.fjallkartan.saved.PlaceSearchSheet
@@ -386,19 +386,19 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         }
         MapControlsBar(isLandscape = isLandscape, modifier = controlsModifier) {
             MapControlButton(onClick = { showSearch = true }) {
-                Icon(Icons.Default.Search, contentDescription = localText("Search places"))
+                Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search_places))
             }
             MapControlButton(onClick = viewModel::toggleTracking) {
                 Icon(
                     Icons.Default.MyLocation,
-                    contentDescription = localText("Track my location"),
+                    contentDescription = stringResource(R.string.track_my_location),
                     tint = if (trackingEnabled) Color(0xFFFF9500) else Color.Black,
                 )
             }
             MapControlButton(onClick = viewModel::toggleMeasuring) {
                 Icon(
                     Icons.Default.Straighten,
-                    contentDescription = localText("Measure distance"),
+                    contentDescription = stringResource(R.string.measure_distance),
                     tint = if (measurement.isMeasuring) Color(0xFFFF9500) else Color.Black,
                 )
             }
@@ -407,11 +407,11 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     MapControlButton(
                         onClick = viewModel::undoMeasurement,
                         enabled = measurement.canUndo,
-                        label = localText("Undo"),
+                        label = stringResource(R.string.undo),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Undo,
-                            contentDescription = localText("Undo last stroke"),
+                            contentDescription = stringResource(R.string.undo_last_stroke),
                             tint = if (measurement.canUndo) Color(0xFF007AFF) else Color.Gray,
                         )
                     }
@@ -420,11 +420,11 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     MapControlButton(
                         onClick = viewModel::clearMeasurement,
                         enabled = !measurement.isEmpty,
-                        label = localText("Clear"),
+                        label = stringResource(R.string.clear),
                     ) {
                         Icon(
                             Icons.Default.Delete,
-                            contentDescription = localText("Clear measurement"),
+                            contentDescription = stringResource(R.string.clear_measurement),
                             tint = if (!measurement.isEmpty) Color(0xFF007AFF) else Color.Gray,
                         )
                     }
@@ -433,11 +433,11 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     MapControlButton(
                         onClick = { showSaveRoute = true },
                         enabled = !measurement.isEmpty,
-                        label = localText("Save"),
+                        label = stringResource(R.string.save),
                     ) {
                         Icon(
                             Icons.Default.BookmarkBorder,
-                            contentDescription = localText("Save current route"),
+                            contentDescription = stringResource(R.string.save_current_route),
                             tint = if (!measurement.isEmpty) Color(0xFF007AFF) else Color.Gray,
                         )
                     }
@@ -453,7 +453,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 }
             }
             MapControlButton(onClick = { showSavedRoutes = true }) {
-                Icon(Icons.Default.Bookmark, contentDescription = localText("Saved routes"))
+                Icon(Icons.Default.Bookmark, contentDescription = stringResource(R.string.saved_routes))
             }
             MapControlButton(onClick = { showTools = !showTools }) {
                 AnimatedContent(
@@ -470,7 +470,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                         } else {
                             Icons.Default.MoreHoriz
                         },
-                        contentDescription = localText("More map tools"),
+                        contentDescription = stringResource(R.string.more_map_tools),
                     )
                 }
             }
@@ -489,11 +489,11 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                                     }
                                 }
                             },
-                            label = localText("Download"),
+                            label = stringResource(R.string.download),
                         ) {
                             Icon(
                                 Icons.Outlined.Download,
-                                contentDescription = localText("Download current area"),
+                                contentDescription = stringResource(R.string.download_current_area),
                                 tint = if (isPickingOffline) Color(0xFFFF9500) else Color.Black,
                             )
                         }
@@ -501,10 +501,10 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 )
                 add(
                     ToolButtonSpec(isPickingOffline) {
-                        MapControlButton(onClick = { showOfflineRegions = true }, label = localText("Regions")) {
+                        MapControlButton(onClick = { showOfflineRegions = true }, label = stringResource(R.string.regions)) {
                             Icon(
                                 Icons.Default.Inbox,
-                                contentDescription = localText("Offline regions"),
+                                contentDescription = stringResource(R.string.offline_regions),
                                 tint = Color(0xFF007AFF),
                             )
                         }
@@ -512,17 +512,17 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 )
                 add(
                     ToolButtonSpec(true) {
-                        MapControlButton(onClick = { showLegend = true }, label = localText("Symbols")) {
-                            Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = localText("Legend"))
+                        MapControlButton(onClick = { showLegend = true }, label = stringResource(R.string.symbols)) {
+                            Icon(Icons.AutoMirrored.Filled.ListAlt, contentDescription = stringResource(R.string.legend))
                         }
                     },
                 )
                 add(
                     ToolButtonSpec(true) {
-                        MapControlButton(onClick = viewModel::toggleSlope, label = localText("Slope")) {
+                        MapControlButton(onClick = viewModel::toggleSlope, label = stringResource(R.string.slope)) {
                             Icon(
                                 painterResource(R.drawable.ic_slope),
-                                contentDescription = localText("Slope"),
+                                contentDescription = stringResource(R.string.slope),
                                 tint = if (slopeVisible) Color(0xFFFF9500) else Color.Black,
                             )
                         }
@@ -589,7 +589,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                             if (elevation.isPartial) {
                                 Icon(
                                     Icons.Default.WarningAmber,
-                                    contentDescription = localText("Part of this route is outside the covered area, so the totals are a minimum."),
+                                    contentDescription = stringResource(R.string.part_of_this_route_is_outside_the_covered_area_so_the),
                                     tint = Color(0xFFFF9500),
                                     modifier = Modifier.size(13.dp),
                                 )
@@ -603,7 +603,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 ) {
                     Icon(
                         Icons.Default.Close,
-                        contentDescription = localText("Clear measurement"),
+                        contentDescription = stringResource(R.string.clear_measurement),
                         tint = Color.DarkGray,
                         modifier = Modifier.size(18.dp),
                     )
@@ -643,7 +643,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         ) {
             Icon(
                 Icons.Outlined.Info,
-                contentDescription = localText("About"),
+                contentDescription = stringResource(R.string.about),
                 tint = Color.Gray,
             )
         }
@@ -678,14 +678,14 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 )
                 if (exceedsGuard) {
                     Text(
-                        "This area is too large to download. Zoom in and try a smaller region.",
+                        stringResource(R.string.this_area_is_too_large_to_download_zoom_in_and_try_a),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Red,
                         textAlign = TextAlign.Center,
                     )
                 } else if (insufficientStorage) {
                     Text(
-                        "Not enough free space on this device to download this area.",
+                        stringResource(R.string.not_enough_free_space_on_this_device_to_download_this_area),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color.Red,
                         textAlign = TextAlign.Center,
@@ -713,7 +713,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        localText("Download this area"),
+                        stringResource(R.string.download_this_area),
                         color = if (downloadDisabled) Color.Gray else Color(0xFFFF9500),
                         fontWeight = FontWeight.SemiBold,
                         fontSize = 15.sp,
@@ -772,7 +772,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     }
     if (showSaveRoute) {
         NameDialog(
-            title = localText("Name route"),
+            title = stringResource(R.string.name_route),
             onConfirm = {
                 viewModel.saveRoute(it)
                 showSaveRoute = false
@@ -799,7 +799,7 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     }
     pendingOfflineBounds?.let { bounds ->
         NameDialog(
-            title = localText("Name offline map"),
+            title = stringResource(R.string.name_offline_map),
             onConfirm = {
                 viewModel.startOfflineDownload(it, bounds)
                 pendingOfflineBounds = null
@@ -812,10 +812,10 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     offlineError?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::clearOfflineError,
-            title = { Text(localText("Offline download")) },
+            title = { Text(stringResource(R.string.offline_download)) },
             text = { Text(message) },
             confirmButton = {
-                TextButton(onClick = viewModel::clearOfflineError) { Text(localText("OK")) }
+                TextButton(onClick = viewModel::clearOfflineError) { Text(stringResource(R.string.ok)) }
             },
         )
     }
