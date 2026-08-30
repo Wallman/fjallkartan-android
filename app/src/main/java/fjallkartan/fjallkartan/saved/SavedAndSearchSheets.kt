@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material3.AlertDialog
@@ -48,7 +47,6 @@ fun PlaceSearchSheet(
     results: List<PlaceResult>,
     onQueryChanged: (String) -> Unit,
     onSelect: (PlaceResult) -> Unit,
-    onSave: (PlaceResult) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
@@ -105,11 +103,6 @@ fun PlaceSearchSheet(
                                         style = MaterialTheme.typography.labelSmall,
                                     )
                                 }
-                            }
-                        },
-                        trailingContent = {
-                            IconButton(onClick = { onSave(place) }) {
-                                Icon(Icons.Default.BookmarkAdd, contentDescription = stringResource(R.string.save_place))
                             }
                         },
                         modifier = Modifier.clickable { onSelect(place) },

@@ -753,7 +753,6 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
                 viewModel.selectPlace(it)
                 showSearch = false
             },
-            onSave = viewModel::savePlace,
             onDismiss = { showSearch = false },
         )
     }
