@@ -64,12 +64,14 @@ import androidx.compose.material.icons.automirrored.filled.ListAlt
 import androidx.compose.material.icons.filled.Inbox
 import androidx.compose.material.icons.filled.MoreHoriz
 import androidx.compose.material.icons.filled.MyLocation
+import androidx.compose.material.icons.filled.Navigation
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Straighten
 import androidx.compose.material.icons.filled.WarningAmber
 import androidx.compose.material.icons.outlined.ArrowCircleDown
 import androidx.compose.material.icons.outlined.Download
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.MyLocation
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -142,6 +144,7 @@ import org.maplibre.android.camera.CameraUpdateFactory
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.geometry.LatLngBounds
 import org.maplibre.android.location.LocationComponentActivationOptions
+import org.maplibre.android.location.OnCameraTrackingChangedListener
 import org.maplibre.android.location.OnLocationCameraTransitionListener
 import org.maplibre.android.location.modes.CameraMode
 import org.maplibre.android.location.modes.RenderMode
@@ -181,7 +184,7 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun MapScreen(viewModel: MapViewModel = viewModel()) {
     val slopeVisible by viewModel.slopeVisible.collectAsStateWithLifecycle()
-    val trackingEnabled by viewModel.trackingEnabled.collectAsStateWithLifecycle()
+    val trackingMode by viewModel.trackingMode.collectAsStateWithLifecycle()
     val measurement by viewModel.measurement.collectAsStateWithLifecycle()
     val elevation by viewModel.elevation.collectAsStateWithLifecycle()
     val savedRoutes by viewModel.savedRoutes.collectAsStateWithLifecycle()
@@ -229,7 +232,9 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
         ActivityResultContracts.RequestMultiplePermissions(),
     ) { permissions ->
         if (permissions.values.any { it }) {
-            mapState.setTracking(true)
+            mapState.setTracking(trackingMode)
+        } else {
+            viewModel.disableTracking()
         }
     }
     LaunchedEffect(Unit) {
@@ -305,21 +310,26 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
     LaunchedEffect(slopeVisible) {
         mapState.setSlopeVisible(slopeVisible)
     }
-    LaunchedEffect(trackingEnabled) {
-        if (!trackingEnabled) {
-            mapState.setTracking(false)
-        } else if (
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+    LaunchedEffect(trackingMode) {
+        val hasPermission = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
             PackageManager.PERMISSION_GRANTED
-        ) {
-            mapState.setTracking(true)
-        } else {
+        if (hasPermission) {
+            mapState.setTracking(trackingMode)
+        } else if (trackingMode != TrackingMode.NONE) {
             locationPermission.launch(
                 arrayOf(
                     Manifest.permission.ACCESS_FINE_LOCATION,
                     Manifest.permission.ACCESS_COARSE_LOCATION,
                 ),
             )
+        }
+    }
+    // MapLibre auto-dismisses camera tracking when the user pans the map away
+    // from their location; mirror that back into the tracking mode, matching
+    // iOS's mapView(_:didChange:animated:) delegate syncing trackingMode.
+    LaunchedEffect(mapState.isActivelyFollowing) {
+        if (!mapState.isActivelyFollowing && trackingMode != TrackingMode.NONE) {
+            viewModel.disableTracking()
         }
     }
 
@@ -390,9 +400,13 @@ fun MapScreen(viewModel: MapViewModel = viewModel()) {
             }
             MapControlButton(onClick = viewModel::toggleTracking) {
                 Icon(
-                    Icons.Default.MyLocation,
+                    when (trackingMode) {
+                        TrackingMode.NONE -> Icons.Outlined.MyLocation
+                        TrackingMode.FOLLOW -> Icons.Default.MyLocation
+                        TrackingMode.FOLLOW_WITH_HEADING -> Icons.Default.Navigation
+                    },
                     contentDescription = stringResource(R.string.track_my_location),
-                    tint = if (trackingEnabled) Color(0xFFFF9500) else Color.Black,
+                    tint = if (trackingMode != TrackingMode.NONE) Color(0xFFFF9500) else Color.Black,
                 )
             }
             MapControlButton(onClick = viewModel::toggleMeasuring) {
@@ -1033,7 +1047,11 @@ private class MapHolder {
     private var container: MapContainerView? = null
     private var map: MapLibreMap? = null
     private var slopeVisible = false
-    private var tracking = false
+    /** True while the camera is actively centered on the user; false once panned away. */
+    var isActivelyFollowing by mutableStateOf(false)
+        private set
+    private var cameraTrackingListenerAdded = false
+    private var tracking: TrackingMode? = null
     private var measuring = false
     private var routeCoordinates: List<GeoCoordinate> = emptyList()
     private var routeMeters: Double = 0.0
@@ -1147,7 +1165,7 @@ private class MapHolder {
             readyMap.setStyle(Style.Builder().fromJson(MapStyle.json())) {
                 addMeasurementLayers(it)
                 setSlopeVisible(slopeVisible)
-                setTracking(tracking)
+                tracking?.let { mode -> setTracking(mode) }
                 setMeasuring(measuring)
                 renderRoute()
                 syncPinMarkers()
@@ -1576,36 +1594,64 @@ private class MapHolder {
     }
 
     @Suppress("MissingPermission")
-    fun setTracking(enabled: Boolean) {
-        tracking = enabled
+    fun setTracking(mode: TrackingMode) {
+        tracking = mode
         val readyMap = map ?: return
         val style = readyMap.style ?: return
         val component = readyMap.locationComponent
-        if (enabled) {
-            component.activateLocationComponent(
-                LocationComponentActivationOptions.builder(mapView?.context ?: return, style).build(),
-            )
-            component.isLocationComponentEnabled = true
-            component.renderMode = RenderMode.COMPASS
-            // Automatically done on iOS
-            if (readyMap.cameraPosition.zoom < MINIMUM_ZOOM_LEVEL_FOR_TRACKING) {
-                component.setCameraMode(
-                    CameraMode.TRACKING,
-                    object : OnLocationCameraTransitionListener {
-                        override fun onLocationCameraTransitionFinished(cameraMode: Int) {
-                            component.zoomWhileTracking(DEFAULT_ZOOM_LEVEL_FOR_TRACKING)
-                        }
+        component.activateLocationComponent(
+            LocationComponentActivationOptions.builder(mapView?.context ?: return, style).build(),
+        )
+        // The dot stays visible whenever permission is granted, matching iOS's
+        // `showsUserLocation`. TrackingMode.NONE only stops the camera from
+        // following/rotating with the user below.
+        component.isLocationComponentEnabled = true
+        if (!cameraTrackingListenerAdded) {
+            cameraTrackingListenerAdded = true
+            component.addOnCameraTrackingChangedListener(
+                object : OnCameraTrackingChangedListener {
+                    override fun onCameraTrackingDismissed() {
+                        isActivelyFollowing = false
+                    }
 
-                        override fun onLocationCameraTransitionCanceled(cameraMode: Int) = Unit
-                    },
-                )
-            } else {
-                component.cameraMode = CameraMode.TRACKING
-            }
-        } else if (component.isLocationComponentActivated) {
-            component.cameraMode = CameraMode.NONE
-            component.isLocationComponentEnabled = false
+                    override fun onCameraTrackingChanged(currentMode: Int) {
+                        isActivelyFollowing = currentMode != CameraMode.NONE
+                    }
+                },
+            )
         }
+        if (mode == TrackingMode.NONE) {
+            component.cameraMode = CameraMode.NONE
+            component.renderMode = RenderMode.NORMAL
+            isActivelyFollowing = false
+            return
+        }
+        val cameraMode = if (mode == TrackingMode.FOLLOW_WITH_HEADING) {
+            CameraMode.TRACKING_COMPASS
+        } else {
+            CameraMode.TRACKING
+        }
+        component.renderMode = if (mode == TrackingMode.FOLLOW_WITH_HEADING) {
+            RenderMode.COMPASS
+        } else {
+            RenderMode.NORMAL
+        }
+        // Automatically done on iOS
+        if (readyMap.cameraPosition.zoom < MINIMUM_ZOOM_LEVEL_FOR_TRACKING) {
+            component.setCameraMode(
+                cameraMode,
+                object : OnLocationCameraTransitionListener {
+                    override fun onLocationCameraTransitionFinished(cameraMode: Int) {
+                        component.zoomWhileTracking(DEFAULT_ZOOM_LEVEL_FOR_TRACKING)
+                    }
+
+                    override fun onLocationCameraTransitionCanceled(cameraMode: Int) = Unit
+                },
+            )
+        } else {
+            component.cameraMode = cameraMode
+        }
+        isActivelyFollowing = true
     }
 
     companion object {

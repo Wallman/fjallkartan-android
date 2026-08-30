@@ -33,12 +33,24 @@ import kotlin.time.Duration.Companion.milliseconds
 
 data class SearchSelection(val place: PlaceResult? = null, val token: Int = 0)
 
+/**
+ * Mirrors iOS's MLNUserTrackingMode: NONE only stops the camera from
+ * following/rotating with the user — the location dot itself stays visible
+ * as long as permission is granted, matching iOS's separate
+ * `showsUserLocation` (permission-based) vs tracking mode (camera-only).
+ */
+enum class TrackingMode {
+    NONE,
+    FOLLOW,
+    FOLLOW_WITH_HEADING,
+}
+
 class MapViewModel(application: Application) : AndroidViewModel(application) {
     private val _slopeVisible = MutableStateFlow(false)
     val slopeVisible = _slopeVisible.asStateFlow()
 
-    private val _trackingEnabled = MutableStateFlow(false)
-    val trackingEnabled = _trackingEnabled.asStateFlow()
+    private val _trackingMode = MutableStateFlow(TrackingMode.NONE)
+    val trackingMode = _trackingMode.asStateFlow()
 
     private val _measurement = MutableStateFlow(MeasurementState())
     val measurement = _measurement.asStateFlow()
@@ -105,7 +117,17 @@ class MapViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun toggleTracking() {
-        _trackingEnabled.value = !_trackingEnabled.value
+        _trackingMode.value = when (_trackingMode.value) {
+            TrackingMode.NONE -> TrackingMode.FOLLOW
+            TrackingMode.FOLLOW -> TrackingMode.FOLLOW_WITH_HEADING
+            TrackingMode.FOLLOW_WITH_HEADING -> TrackingMode.NONE
+        }
+    }
+
+    /** Called when location permission is denied, or when MapLibre reports that
+     * the camera stopped following the user (e.g. the map was panned away). */
+    fun disableTracking() {
+        _trackingMode.value = TrackingMode.NONE
     }
 
     fun toggleMeasuring() {
