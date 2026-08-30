@@ -19,6 +19,7 @@ require "shellwords"
 default_platform(:android)
 
 PACKAGE_NAME = "fjallkartan.fjallkartan"
+PROJECT_ROOT = File.expand_path("..", __dir__)
 METADATA_PATH = File.expand_path("metadata/android", __dir__)
 RELEASE_AAB = File.expand_path("../app/build/outputs/bundle/release/app-release.aab", __dir__)
 RELEASE_APK = File.expand_path("../app/build/outputs/apk/release/app-release.apk", __dir__)
@@ -32,8 +33,10 @@ PLAY_FIELD_LIMITS = {
 REQUIRED_PLAY_FIELDS = PLAY_FIELD_LIMITS.keys.freeze
 
 def require_play_key!
-  path = ENV["GOOGLE_PLAY_JSON_KEY"].to_s
-  UI.user_error!("GOOGLE_PLAY_JSON_KEY is not set") if path.empty?
+  raw_path = ENV["GOOGLE_PLAY_JSON_KEY"].to_s
+  UI.user_error!("GOOGLE_PLAY_JSON_KEY is not set") if raw_path.empty?
+  # .envrc sets this relative to the project root, not fastlane's own working directory.
+  path = File.expand_path(raw_path, PROJECT_ROOT)
   UI.user_error!("GOOGLE_PLAY_JSON_KEY does not exist: #{path}") unless File.file?(path)
   path
 end
@@ -127,7 +130,7 @@ platform :android do
   lane :build do
     require_upload_signing!
     gradle(tasks: ["clean", "testDebugUnitTest", "lintDebug", "assembleRelease", "bundleRelease"])
-    sh("python3 tools/verify_16kb_alignment.py app/build/outputs/apk/release/app-release.apk")
+    sh("python3 ../tools/verify_16kb_alignment.py ../app/build/outputs/apk/release/app-release.apk")
 
     sdk = ENV.fetch("ANDROID_HOME", File.expand_path("~/Library/Android/sdk"))
     zipalign = Dir.glob(File.join(sdk, "build-tools", "*", "zipalign")).sort.last
@@ -141,7 +144,7 @@ platform :android do
     upload_to_play_store(
       **play_upload_options,
       track: "alpha",
-      version_code: 3,
+      version_code: 4,
       skip_upload_aab: true,
       skip_upload_apk: true,
       skip_upload_images: true,
@@ -156,7 +159,7 @@ platform :android do
     upload_to_play_store(
       **play_upload_options,
       track: "alpha",
-      version_code: 3,
+      version_code: 4,
       skip_upload_aab: true,
       skip_upload_apk: true,
       skip_upload_metadata: true,
@@ -195,6 +198,23 @@ platform :android do
       aab: RELEASE_AAB,
       track: "internal",
       release_status: "draft",
+      skip_upload_apk: true,
+      skip_upload_metadata: true,
+      skip_upload_changelogs: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true
+    )
+  end
+
+  desc "Build and upload a release to the closed testing (alpha) track"
+  lane :closed do |options|
+    build
+    upload_to_play_store(
+      **play_upload_options,
+      aab: RELEASE_AAB,
+      track: "alpha",
+      release_status: options.fetch(:status, "completed"),
+      skip_upload_apk: true,
       skip_upload_metadata: true,
       skip_upload_changelogs: true,
       skip_upload_images: true,
