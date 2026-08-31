@@ -7,8 +7,10 @@ import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.PointF
+import android.graphics.Rect
 import android.view.MotionEvent
 import android.view.View
+import android.view.ViewGroup
 import android.widget.FrameLayout
 import fjallkartan.fjallkartan.measurement.DistanceMeasurement
 import fjallkartan.fjallkartan.measurement.GeoCoordinate
@@ -18,6 +20,7 @@ import kotlin.math.hypot
 import org.maplibre.android.geometry.LatLng
 import org.maplibre.android.maps.MapLibreMap
 import org.maplibre.android.maps.MapView
+import org.maplibre.android.maps.widgets.CompassView
 
 @SuppressLint("ViewConstructor")
 internal class MapContainerView(
@@ -80,6 +83,11 @@ internal class MeasureCaptureView(context: Context) : View(context) {
 
     override fun onTouchEvent(event: MotionEvent): Boolean {
         if (map == null) return true
+        if (event.actionMasked == MotionEvent.ACTION_DOWN && touchesCompass(event.x, event.y)) {
+            // Let the touch fall through to MapLibre's own compass button instead of
+            // starting a stroke, so tapping it still resets bearing while measuring.
+            return false
+        }
         // Delegate any multi-touch handling to MapLibre's own gesture detector so pan,
         // pinch-zoom and rotation behave exactly as they do outside of measuring mode.
         // A hand-rolled reimplementation based on raw per-frame midpoint/distance deltas
@@ -188,5 +196,34 @@ internal class MeasureCaptureView(context: Context) : View(context) {
         manipulatingMap = false
         onPreviewChanged(null)
         invalidate()
+    }
+
+    private fun touchesCompass(x: Float, y: Float): Boolean {
+        val compass = mapView?.let { findCompassView(it) } ?: return false
+        if (compass.visibility != VISIBLE || compass.isHidden) return false
+        val compassLocation = IntArray(2)
+        compass.getLocationOnScreen(compassLocation)
+        val selfLocation = IntArray(2)
+        getLocationOnScreen(selfLocation)
+        // Pad the hit rect slightly beyond the drawable bounds to match the button's
+        // usual tap target size.
+        val padding = (8 * density).toInt()
+        val rect = Rect(
+            compassLocation[0] - selfLocation[0] - padding,
+            compassLocation[1] - selfLocation[1] - padding,
+            compassLocation[0] - selfLocation[0] + compass.width + padding,
+            compassLocation[1] - selfLocation[1] + compass.height + padding,
+        )
+        return rect.contains(x.toInt(), y.toInt())
+    }
+
+    private fun findCompassView(view: View): CompassView? {
+        if (view is CompassView) return view
+        if (view is ViewGroup) {
+            for (i in 0 until view.childCount) {
+                findCompassView(view.getChildAt(i))?.let { return it }
+            }
+        }
+        return null
     }
 }
