@@ -1201,6 +1201,9 @@ private class MapHolder {
             // fight with the capture view's own line-drawing touch handling. Pinch-zoom
             // and two-finger rotate are safe to keep native since they're only ever
             // triggered with 2+ pointers, distinct from the single-finger draw gesture.
+            // Scroll (pan) is set here only as the default for a single finger; the
+            // capture view re-enables it for the duration of any two-finger touch so
+            // panning still works while measuring.
             isScrollGesturesEnabled = !enabled
             isZoomGesturesEnabled = true
             isRotateGesturesEnabled = true

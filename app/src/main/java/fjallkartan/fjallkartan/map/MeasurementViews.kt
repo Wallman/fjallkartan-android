@@ -92,12 +92,14 @@ internal class MeasureCaptureView(context: Context) : View(context) {
                 points += ScreenPoint(event.x.toDouble(), event.y.toDouble())
                 updatePreview()
                 invalidate()
+                map?.uiSettings?.isScrollGesturesEnabled = false
             }
             MotionEvent.ACTION_POINTER_DOWN -> {
                 manipulatingMap = true
                 points.clear()
                 onPreviewChanged(null)
                 invalidate()
+                map?.uiSettings?.isScrollGesturesEnabled = true
             }
             MotionEvent.ACTION_MOVE -> {
                 if (event.pointerCount >= 2) {
@@ -120,11 +122,18 @@ internal class MeasureCaptureView(context: Context) : View(context) {
                 if (!manipulatingMap) finishStroke()
                 performClick()
                 clearStroke()
+                map?.uiSettings?.isScrollGesturesEnabled = false
             }
             MotionEvent.ACTION_POINTER_UP -> {
                 manipulatingMap = true
+                if (event.pointerCount - 1 <= 1) {
+                    map?.uiSettings?.isScrollGesturesEnabled = false
+                }
             }
-            MotionEvent.ACTION_CANCEL -> clearStroke()
+            MotionEvent.ACTION_CANCEL -> {
+                clearStroke()
+                map?.uiSettings?.isScrollGesturesEnabled = false
+            }
         }
         return true
     }
